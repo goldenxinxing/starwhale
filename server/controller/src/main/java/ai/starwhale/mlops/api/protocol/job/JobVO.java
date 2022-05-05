@@ -7,9 +7,10 @@
 
 package ai.starwhale.mlops.api.protocol.job;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
+import ai.starwhale.mlops.api.protocol.runtime.BaseImageVO;
+import ai.starwhale.mlops.api.protocol.user.UserVO;
+import ai.starwhale.mlops.domain.job.status.JobStatus;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonValue;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.io.Serializable;
 import java.util.List;
@@ -35,69 +36,37 @@ public class JobVO implements Serializable {
     @JsonProperty("modelVersion")
     private String modelVersion;
 
-    @JsonProperty("dataset")
+    @JsonProperty("datasets")
     @Valid
-    private List<String> dataset;
+    private List<String> datasets;
 
     @JsonProperty("baseImage")
-    private String baseImage;
+    private BaseImageVO baseImage;
 
     @JsonProperty("device")
     private String device;
 
-    @JsonProperty("deviceCount")
-    private Integer deviceCount;
+    @JsonProperty("deviceAmount")
+    private Integer deviceAmount;
 
-    @JsonProperty("ownerName")
-    private String ownerName;
+    @JsonProperty("owner")
+    private UserVO owner;
 
-    @JsonProperty("createTime")
-    private String createTime;
-
-    @JsonProperty("duration")
-    private String duration;
+    @JsonProperty("createdTime")
+    private Long createdTime;
 
     @JsonProperty("stopTime")
-    private String stopTime;
+    private Long stopTime;
 
-    /**
-     * Gets or Sets status
-     */
-    public enum StatusEnum {
-        PREPARING("preparing"),
+    @JsonProperty("jobStatus")
+    private JobStatus jobStatus;
 
-        RUNNING("running"),
-
-        COMPLETED("completed"),
-
-        CANCELLING("cancelling"),
-
-        CANCELLED("cancelled"),
-
-        FAILED("failed");
-
-        private final String value;
-
-        StatusEnum(String value) {
-            this.value = value;
+    @JsonProperty("duration")
+    public Long getDuration(){
+        if(null == stopTime || stopTime <=0){
+            return System.currentTimeMillis() - createdTime;
         }
-
-        @Override
-        @JsonValue
-        public String toString() {
-            return String.valueOf(value);
-        }
-
-        @JsonCreator
-        public static StatusEnum fromValue(String text) {
-            for (StatusEnum b : StatusEnum.values()) {
-                if (String.valueOf(b.value).equals(text)) {
-                    return b;
-                }
-            }
-            return null;
-        }
+        return stopTime - createdTime;
     }
-    @JsonProperty("status")
-    private StatusEnum status;
+
 }

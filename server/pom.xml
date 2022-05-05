@@ -14,6 +14,7 @@
         <module>controller-sdk</module>
         <module>agent</module>
         <module>agent-sdk</module>
+        <module>storage-access-layer</module>
     </modules>
 
     <properties>
@@ -25,6 +26,10 @@
         <jwt-version>0.9.1</jwt-version>
         <mybatis.starter.version>2.2.2</mybatis.starter.version>
         <pagehelper.starter.version>1.4.1</pagehelper.starter.version>
+        <guava.version>31.1-jre</guava.version>
+        <starwhale.version>0.1.0-SNAPSHOT</starwhale.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     </properties>
 
     <dependencyManagement>
@@ -47,12 +52,17 @@
             <dependency>
                 <groupId>ai.starwhale</groupId>
                 <artifactId>starwhale-agent-sdk</artifactId>
-                <version>0.1.0-SNAPSHOT</version>
+                <version>${starwhale.version}</version>
             </dependency>
             <dependency>
                 <groupId>ai.starwhale</groupId>
                 <artifactId>starwhale-controller-sdk</artifactId>
-                <version>0.1.0-SNAPSHOT</version>
+                <version>${starwhale.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>ai.starwhale</groupId>
+                <artifactId>storage-access-layer</artifactId>
+                <version>${starwhale.version}</version>
             </dependency>
 
             <!-- swagger-ui -->
@@ -79,13 +89,13 @@
                 <artifactId>hutool-all</artifactId>
                 <version>${hutool-version}</version>
             </dependency>
-
+            <!-- https://mvnrepository.com/artifact/org.mybatis.spring.boot/mybatis-spring-boot-starter -->
             <dependency>
                 <groupId>org.mybatis.spring.boot</groupId>
                 <artifactId>mybatis-spring-boot-starter</artifactId>
                 <version>${mybatis.starter.version}</version>
             </dependency>
-
+            <!-- https://mvnrepository.com/artifact/com.github.pagehelper/pagehelper -->
             <dependency>
                 <groupId>com.github.pagehelper</groupId>
                 <artifactId>pagehelper-spring-boot-starter</artifactId>
@@ -97,6 +107,20 @@
                     </exclusion>
                 </exclusions>
             </dependency>
+
+            <!-- https://mvnrepository.com/artifact/com.google.guava/guava -->
+            <dependency>
+                <groupId>com.google.guava</groupId>
+                <artifactId>guava</artifactId>
+                <version>${guava.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.rfksystems</groupId>
+                <artifactId>blake2b</artifactId>
+                <version>1.0.0</version>
+            </dependency>
+
         </dependencies>
     </dependencyManagement>
 
@@ -273,6 +297,7 @@
                 <plugin>
                     <groupId>org.springframework.boot</groupId>
                     <artifactId>spring-boot-maven-plugin</artifactId>
+                    <version>2.6.6</version>
                     <executions>
                         <execution>
                             <id>repackage</id>
@@ -284,6 +309,16 @@
                     <configuration>
                         <mainClass>${start-class}</mainClass>
                     </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-dependency-plugin</artifactId>
+                    <version>3.3.0</version>
+                </plugin>
+                <plugin>
+                    <groupId>com.github.eirslett</groupId>
+                    <artifactId>frontend-maven-plugin</artifactId>
+                    <version>1.12.1</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>

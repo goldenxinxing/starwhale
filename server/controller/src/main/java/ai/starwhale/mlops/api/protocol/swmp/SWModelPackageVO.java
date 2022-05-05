@@ -7,6 +7,7 @@
 
 package ai.starwhale.mlops.api.protocol.swmp;
 
+import ai.starwhale.mlops.api.protocol.user.UserVO;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.io.Serializable;
@@ -26,10 +27,13 @@ public class SWModelPackageVO implements Serializable {
     @JsonProperty("name")
     private String name;
 
-    @JsonProperty("createTime")
-    private String createTime;
+    @JsonProperty("createdTime")
+    private Long createdTime;
 
-    @JsonProperty("ownerName")
-    private String ownerName;
+    @JsonProperty("owner")
+    private UserVO owner;
 
+    public static SWModelPackageVO empty() {
+        return new SWModelPackageVO("", "", -1L, UserVO.empty());
+    }
 }

@@ -7,12 +7,17 @@
 
 package ai.starwhale.mlops.api.protocol;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
+@Builder
+@NoArgsConstructor
 public class ResponseMessage<T> {
     // todo
-    private String requestId = null;
+    // private String requestId = null;
 
     private String code;
     private String message;

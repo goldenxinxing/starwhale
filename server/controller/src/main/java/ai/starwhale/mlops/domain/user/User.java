@@ -7,28 +7,28 @@
 
 package ai.starwhale.mlops.domain.user;
 
-import ai.starwhale.mlops.common.BaseEntity;
+import ai.starwhale.mlops.common.IDConvertor;
+import java.io.Serializable;
+import java.util.Collection;
+import java.util.Set;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
-import java.io.Serializable;
-import java.util.Collection;
-import java.util.Set;
-
-@EqualsAndHashCode(callSuper = true)
 @Data
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class User extends BaseEntity implements UserDetails, Serializable {
+public class User implements UserDetails, Serializable {
+
     private String id;
+    private Long idTableKey;
     private String name;
     private String password;
+    private String salt;
     private boolean active;
     private Set<Role> roles;
 
@@ -61,4 +61,24 @@ public class User extends BaseEntity implements UserDetails, Serializable {
     public boolean isEnabled() {
         return active;
     }
+
+    public User fromEntity(UserEntity entity) {
+        return fromEntity(entity, null);
+    }
+    public User fromEntity(UserEntity entity, IDConvertor idConvertor) {
+        if(entity == null) {
+            return this;
+        }
+        if (idConvertor != null) {
+          setId(idConvertor.convert(entity.getId()));
+        }
+        setName(entity.getUserName());
+        setPassword(entity.getUserPwd());
+        setSalt(entity.getUserPwdSalt());
+        setActive(entity.getUserEnabled() == 1);
+        setRoles(Set.of(new Role().fromEntity(entity.getRole(), idConvertor)));
+        setIdTableKey(entity.getId());
+        return this;
+    }
+
 }

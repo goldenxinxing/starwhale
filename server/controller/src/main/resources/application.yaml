@@ -3,14 +3,26 @@ spring:
     active: dev
   application:
     name: star-whale-controller
-logging:
-  level:
-    root: info
+  servlet:
+    multipart:
+      max-file-size: ${SW_UPLOAD_MAX_FILE_SIZE:20480MB}
+      max-request-size: ${SW_UPLOAD_MAX_FILE_SIZE:20480MB}
 sw:
+  version: ${SW_VERSION_CONTROLLER:0.1.0:8c82767b60686f3e2bfea9dafe8c8cce5dd34f52}
   jwt:
     secret: wdxlG3UK66m6uTUgxXFjizli
-server:
-  port: 80
+  taskSize: ${SW_TASK_SPLIT_SIZE:256}
+  storage:
+    path-prefix: ${SW_STORAGE_PREFIX:StarWhale}
+    s3-config:
+      bucket: ${SW_STORAGE_BUCKET:starwhale}
+      accessKey: ${SW_STORAGE_ACCESSKEY:12345678}
+      secretKey: ${SW_STORAGE_SECRETKEY:12345678}
+      region: ${SW_STORAGE_REGION:local}
+      endpoint: ${SW_STORAGE_ENDPOINT:http://localhost:9000}
+  controller:
+    apiPrefix: /api/v1
+    whiteList: /api/v1/report
 ---
 #Development
 spring:
@@ -20,11 +32,14 @@ spring:
   datasource:
     name: mysql
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/starwhale?useUnicode=true&characterEncoding=UTF-8
-    username: starwhale
-    password: sw1234
-    schema: classpath:sql/schema.sql
-    initialization-mode: always
+    url: jdbc:mysql://${SW_METADATA_STORAGE_IP:127.0.0.1}:${SW_METADATA_STORAGE_PORT:3306}/starwhale?useUnicode=true&characterEncoding=UTF-8&createDatabaseIfNotExist=true&allowMultiQueries=true
+    username: ${SW_METADATA_STORAGE_USER:root}
+    password: ${SW_METADATA_STORAGE_PASSWORD:my-secret-pw}
+  flyway:
+    locations: "classpath:db/migration"
+  mvc:
+     view:
+         suffix: .html
 
 mybatis:
   configuration:
@@ -32,4 +47,9 @@ mybatis:
   mapper-locations: classpath*:mapper/**/*.xml
 
 server:
-  port: 8082
+  port: ${SW_CONTROLLER_PORT:8082}
+
+logging:
+  level:
+    root: info
+    ai.starwhale.mlops: debug

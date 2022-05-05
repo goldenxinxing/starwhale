@@ -7,20 +7,31 @@
 
 package ai.starwhale.mlops.domain.node;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 
 import java.util.List;
+import lombok.NoArgsConstructor;
 
 /**
  * Node is a machine/ a virtual machine or even a K8S pod in the cluster
  */
 @Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class Node {
 
     /**
-     * unique name in the cluster
+     * the version of the agent that is deployed on this node
      */
-    String name;
+    String agentVersion;
+
+    /**
+     * the unique number to identify this node
+     */
+    String serialNumber;
 
     /**
      * the ip address of this node
@@ -30,11 +41,19 @@ public class Node {
     /**
      * memory size in GB unit
      */
-    Long memorySizeGB;
+    Integer memorySizeGB;
 
     /**
      * the device holding information
      */
-    List<DeviceHolder> deviceHolders;
+    List<Device> devices;
+
+    public boolean equals(Object obj){
+        if(!(obj instanceof Node)){
+            return false;
+        }
+        Node node = (Node)obj;
+        return this.serialNumber.equals(node.getSerialNumber());
+    }
 
 }

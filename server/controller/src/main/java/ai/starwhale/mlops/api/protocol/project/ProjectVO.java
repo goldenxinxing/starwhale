@@ -7,6 +7,7 @@
 
 package ai.starwhale.mlops.api.protocol.project;
 
+import ai.starwhale.mlops.api.protocol.user.UserVO;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.io.Serializable;
 import lombok.Builder;
@@ -23,7 +24,13 @@ public class ProjectVO implements Serializable {
 
     private String name;
 
-    private String createTime;
+    private Long createdTime;
 
-    private String ownerName;
+    private UserVO owner;
+
+    private Boolean isDefault;
+
+    public static ProjectVO empty() {
+        return new ProjectVO("", "", -1L, UserVO.empty(), false);
+    }
 }

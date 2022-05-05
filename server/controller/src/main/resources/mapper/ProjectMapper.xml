@@ -7,50 +7,81 @@
   -->
 
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
-<mapper namespace="ai.starwhale.mlops.domain.project.ProjectMapper">
+<mapper namespace="ai.starwhale.mlops.domain.project.mapper.ProjectMapper">
     <insert id="createProject" parameterType="ai.starwhale.mlops.domain.project.ProjectEntity" useGeneratedKeys="true" keyProperty="id">
         insert into project_info(project_name, owner_id)
         values (#{projectName}, #{ownerId})
     </insert>
 
     <delete id="deleteProject" parameterType="java.lang.Long">
-        delete from project_info
+        update project_info
+        set is_deleted = 1
         where id = #{id}
     </delete>
 
     <update id="modifyProject" parameterType="ai.starwhale.mlops.domain.project.ProjectEntity">
         update project_info
         set project_name = #{projectName}
-        where project_id = #{id}
+        where id = #{id}
     </update>
 
-    <select id="listProjects" parameterType="java.lang.String" resultType="ai.starwhale.mlops.domain.project.ProjectEntity" >
-        select p.id,
+    <sql id="select_project">
+        select p.id as project_id,
                p.project_name,
                p.owner_id,
-               p.is_deleted,
-               p.create_time,
-               p.modified_time,
-               u.user_name as owner_name
+               p.is_deleted as project_is_deleted,
+               p.is_default as project_is_default,
+               p.created_time as project_created_time,
+               p.modified_time as project_modified_time,
+               u.id as user_id,
+               u.user_name,
+               u.created_time as user_created_time,
+               u.user_enabled,
+               r.id as role_id,
+               r.role_name,
+               r.role_name_en
         from project_info as p,
-             user_info as u
+             user_info as u,
+             user_role as r
         where u.id = p.owner_id
-        <if test="projectName != null">
-            and project_name like #{projectName}%
+          and r.id = u.role_id
+    </sql>
+
+    <select id="listProjects" parameterType="java.lang.String" resultMap="projectResultMap" >
+        <include refid="select_project"/>
+        and p.is_deleted = 0
+        <if test="projectName != null and projectName != ''">
+            and p.project_name like concat(#{projectName}, '%')
         </if>
+        order by p.id desc
     </select>
 
-    <select id="findProject" parameterType="java.lang.Long" resultType="ai.starwhale.mlops.domain.project.ProjectEntity">
-        select p.id,
-               p.project_name,
-               p.owner_id,
-               p.is_deleted,
-               p.create_time,
-               p.modified_time,
-               u.user_name as owner_name
-        from project_info as p,
-             user_info as u
-        where id = #{id}
-          and u.id = p.owner_id
+    <select id="listProjectsByOwner" parameterType="java.lang.Long" resultMap="projectResultMap">
+        <include refid="select_project"/>
+        and p.owner_id = #{userId}
+        order by p.id
     </select>
+
+    <select id="findProject" parameterType="java.lang.Long" resultMap="projectResultMap">
+        <include refid="select_project"/>
+        and p.id = #{id}
+    </select>
+
+    <select id="findDefaultProject" parameterType="java.lang.Long" resultMap="projectResultMap">
+        <include refid="select_project"/>
+        and p.owner_id = #{userId}
+        and p.is_default = 1
+    </select>
+
+
+    <resultMap id="projectResultMap" type="ai.starwhale.mlops.domain.project.ProjectEntity">
+        <id property="id" column="project_id" />
+        <result property="projectName" column="project_name"/>
+        <result property="isDeleted" column="project_is_deleted"/>
+        <result property="isDefault" column="project_is_default"/>
+        <result property="createdTime" column="project_created_time"/>
+        <result property="modifiedTime" column="project_modified_time"/>
+        <result property="ownerId" column="owner_id" />
+        <association property="owner" resultMap="ai.starwhale.mlops.domain.user.mapper.UserMapper.userResultMap" />
+    </resultMap>
 </mapper>

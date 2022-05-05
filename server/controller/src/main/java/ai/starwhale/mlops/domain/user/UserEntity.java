@@ -8,6 +8,7 @@
 package ai.starwhale.mlops.domain.user;
 
 import ai.starwhale.mlops.common.BaseEntity;
+import java.io.Serializable;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -19,7 +20,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class UserEntity extends BaseEntity {
+public class UserEntity extends BaseEntity implements Serializable {
 
     private Long id;
 
@@ -31,7 +32,8 @@ public class UserEntity extends BaseEntity {
 
     private Long roleId;
 
-    private String roleName;
+    private RoleEntity role;
 
     private Integer userEnabled;
+
 }

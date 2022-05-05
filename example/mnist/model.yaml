@@ -2,18 +2,22 @@ version: 1.0
 name: mnist
 
 model:
-  - mnist.pkl
+  - models/mnist_cnn.pt
 
 config:
-  - hyperparam.json
+  - config/hyperparam.json
 
 run:
-  runtime: python3.8
-  ppl: ppl.py
+  runtime: python3.9
+  ppl: mnist.ppl:MNISTInference
   pip_req: requirements.txt
-  args: --predictor
+  exclude_pkg_data:
+    - venv
+    - .git
+    - .history
+    - .vscode
 
-desc: mnist by ptorch
+desc: mnist by pytorch
 
 tag:
-  - classify
+  - multi_classification

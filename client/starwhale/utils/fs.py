@@ -1,7 +1,11 @@
 import os
+import shutil
 import typing as t
 import errno
 from pathlib import Path
+import hashlib
+
+BLAKE2B_SIGNATURE_ALGO = "blake2b"
 
 
 def ensure_file(path: t.Union[str, Path], content: str, mode: int = 0o644) -> None:
@@ -22,6 +26,17 @@ def ensure_file(path: t.Union[str, Path], content: str, mode: int = 0o644) -> No
         _tmp_f.rename(path)
 
     os.chmod(path, mode)
+
+
+def empty_dir(path: t.Union[str, Path]) -> None:
+    path = Path(path)
+    if not path.exists():
+        return
+
+    if path.is_dir():
+        shutil.rmtree(str(path.resolve()))
+    else:
+        path.unlink()
 
 
 def ensure_dir(path: t.Union[str, Path], mode: int=0o755, recursion: bool=True) ->None:
@@ -51,3 +66,18 @@ def ensure_link(src: t.Union[str, Path], dest: t.Union[str, Path]) -> None:
             return
         os.unlink(dest)
     os.symlink(src, dest)
+
+
+def blake2b_file(fpath: t.Union[str, Path]) -> str:
+    _chunk_size = 8192
+    fpath = Path(fpath)
+    # blake2b is more faster and better than md5,sha1,sha2
+    _hash = hashlib.blake2b()
+
+    with fpath.open("rb") as f:
+        _chunk = f.read(_chunk_size)
+        while _chunk:
+            _hash.update(_chunk)
+            _chunk = f.read(_chunk_size)
+
+    return _hash.hexdigest()

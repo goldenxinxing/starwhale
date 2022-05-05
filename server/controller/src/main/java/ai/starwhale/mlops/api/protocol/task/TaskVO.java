@@ -7,6 +7,8 @@
 
 package ai.starwhale.mlops.api.protocol.task;
 
+import ai.starwhale.mlops.api.protocol.agent.AgentVO;
+import ai.starwhale.mlops.domain.task.status.TaskStatus;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.io.Serializable;
@@ -26,9 +28,16 @@ public class TaskVO implements Serializable {
     @JsonProperty("uuid")
     private String uuid;
 
-    @JsonProperty("ip")
-    private String ip;
+    @JsonProperty("agent")
+    private AgentVO agent;
 
-    @JsonProperty("startTime")
-    private String startTime;
+    @JsonProperty("createdTime")
+    private Long createdTime;
+
+    @JsonProperty("taskStatus")
+    private TaskStatus taskStatus;
+
+    public static TaskVO empty() {
+        return new TaskVO("", "", AgentVO.empty(), -1L, TaskStatus.CREATED);
+    }
 }

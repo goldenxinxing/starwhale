@@ -9,12 +9,12 @@ package ai.starwhale.mlops.agent.report;
 
 import ai.starwhale.mlops.api.ReportApi;
 import ai.starwhale.mlops.api.protocol.ResponseMessage;
-import ai.starwhale.mlops.api.protocol.report.ReportRequest;
-import ai.starwhale.mlops.api.protocol.report.ReportResponse;
+import ai.starwhale.mlops.api.protocol.report.req.ReportRequest;
+import ai.starwhale.mlops.api.protocol.report.resp.ReportResponse;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PostMapping;
 
-@FeignClient
+@FeignClient(name="${sw.controller.name:swController}", url="${sw.controller.url:http://localhost:8080/}")
 public interface ReportHttpClient extends ReportApi {
     @PostMapping("api/v1/report")
     @Override

@@ -7,6 +7,7 @@
 
 package ai.starwhale.mlops.api.protocol.swds;
 
+import ai.starwhale.mlops.api.protocol.user.UserVO;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.io.Serializable;
@@ -31,9 +32,9 @@ public class DatasetVersionVO implements Serializable {
     @JsonProperty("meta")
     private Object meta;
 
-    @JsonProperty("createTime")
-    private String createTime;
+    @JsonProperty("createdTime")
+    private Long createdTime;
 
-    @JsonProperty("ownerName")
-    private String ownerName;
+    @JsonProperty("owner")
+    private UserVO owner;
 }
