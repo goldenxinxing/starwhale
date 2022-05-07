@@ -22,10 +22,10 @@ jobs:
       run: docker run --rm -v $PWD:/app -w /app starwhaleai/nodejs:0.1.0-nightly-20220505190936 yarn build
     - name: Build By maven
       working-directory: ./server
-      run: 	docker run --rm -v $PWD:/app -w /app maven:3.8.5-openjdk-11 mvn clean package -DskipTests
+      run: docker run --rm -v $PWD:/app -w /app maven:3.8.5-openjdk-11 mvn clean package -DskipTests
     - name: Build Controller
       working-directory: ./docker
-      run: docker build -f Dockerfile.controller -t starwhaleai/controller:0.1.0-nightly-$(date +%s)
+      run: docker build -f Dockerfile.controller -t starwhaleai/controller:0.1.0-nightly-$(date +%s) .
     - name: Build Agent
       working-directory: ./docker
-      run: docker build -f Dockerfile.agent -t starwhaleai/agent:0.1.0-nightly-$(date +%s)
+      run: docker build -f Dockerfile.agent -t starwhaleai/agent:0.1.0-nightly-$(date +%s) .
