@@ -16,7 +16,7 @@ jobs:
     - uses: actions/checkout@v3
     - name: Install for UI
       working-directory: ./console
-      run: docker run --rm starwhaleai/nodejs:0.1.0-nightly-20220505190936 yarn install
+      run: pwd;docker run --rm starwhaleai/nodejs:0.1.0-nightly-20220505190936 yarn install
     - name: Build for UI
       working-directory: ./console
       run: docker run --rm starwhaleai/nodejs:0.1.0-nightly-20220505190936 yarn build
