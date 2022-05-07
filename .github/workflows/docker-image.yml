@@ -14,11 +14,18 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    - name: Install for UI
+      working-directory: ./console
+      run: docker run --rm -it starwhaleai/nodejs:0.1.0-nightly-20220505190936 yarn install
     - name: Build for UI
-      run: docker run --rm -it -v $PWD/console:/app -w /app starwhaleai/nodejs:0.1.0-nightly-20220505190936 yarn install;docker run --rm -it -v $PWD/console:/app -w /app starwhaleai/nodejs:0.1.0-nightly-20220505190936 yarn build
+      working-directory: ./console
+      run: docker run --rm -it starwhaleai/nodejs:0.1.0-nightly-20220505190936 yarn build
     - name: Build By maven
-      run: 	docker run --rm -it -v $PWD/server:/app -w /app maven:3.8.5-openjdk-11 mvn clean package -DskipTests
+      working-directory: ./server
+      run: 	docker run --rm -it maven:3.8.5-openjdk-11 mvn clean package -DskipTests
     - name: Build Controller
-      run: docker build -f docker/Dockerfile.controller -t starwhaleai/controller:0.1.0-nightly-$(date +%s)
+      working-directory: ./docker
+      run: docker build -f Dockerfile.controller -t starwhaleai/controller:0.1.0-nightly-$(date +%s)
     - name: Build Agent
-      run: docker build -f docker/Dockerfile.agent -t starwhaleai/agent:0.1.0-nightly-$(date +%s)
+      working-directory: ./docker
+      run: docker build -f Dockerfile.agent -t starwhaleai/agent:0.1.0-nightly-$(date +%s)
