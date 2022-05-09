@@ -25,10 +25,3 @@ jobs:
 
     - name: Build with Maven
       run: mvn -B package --file server/pom.xml -DskipTests
-
-    - name: Build Controller
-      working-directory: ./docker
-      run: docker build -f Dockerfile.controller -t starwhaleai/controller:0.1.0-nightly-$(date +%s) .
-    - name: Build Agent
-      working-directory: ./docker
-      run: docker build -f Dockerfile.agent -t starwhaleai/agent:0.1.0-nightly-$(date +%s) .
