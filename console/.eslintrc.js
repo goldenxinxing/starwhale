@@ -25,6 +25,7 @@ module.exports = {
     ],
     plugins: ['@typescript-eslint', 'react', 'react-hooks', 'baseui'],
     rules: {
+        '@typescript-eslint/no-explicit-any': 'off',
         'quotes': ['error', 'single', { avoidEscape: true }],
         'require-atomic-updates': 'off',
         'react-hooks/rules-of-hooks': 'error',
@@ -97,7 +98,7 @@ module.exports = {
         'baseui/no-deep-imports': 'warn',
     },
     settings: {
-        react: {
+        'react': {
             version: 'detect',
         },
         'import/resolver': {

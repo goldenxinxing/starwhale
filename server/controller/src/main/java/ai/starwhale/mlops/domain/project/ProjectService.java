@@ -1,8 +1,17 @@
-/*
- * Copyright 2022.1-2022
- * StarWhale.ai All right reserved. This software is the confidential and proprietary information of
- * StarWhale.ai ("Confidential Information"). You shall not disclose such Confidential Information and shall use it only
- * in accordance with the terms of the license agreement you entered into with StarWhale.ai.
+/**
+ * Copyright 2022 Starwhale, Inc. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package ai.starwhale.mlops.domain.project;
@@ -17,12 +26,14 @@ import ai.starwhale.mlops.exception.SWValidationException.ValidSubject;
 import ai.starwhale.mlops.exception.api.StarWhaleApiException;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+import com.google.common.base.Strings;
 import java.util.List;
 import java.util.stream.Collectors;
 import javax.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 @Slf4j
 @Service
@@ -59,7 +70,15 @@ public class ProjectService {
      */
     public PageInfo<ProjectVO> listProject(Project project, PageParams pageParams) {
         PageHelper.startPage(pageParams.getPageNum(), pageParams.getPageSize());
-        List<ProjectEntity> entities = projectMapper.listProjects(project.getName());
+        List<ProjectEntity> entities;
+        if(StringUtils.hasText(project.getOwner().getId())) {
+            entities = projectMapper.listProjectsByOwner(idConvertor.revert(project.getOwner().getId()));
+        } else if (StringUtils.hasText(project.getOwner().getName())) {
+            entities = projectMapper.listProjectsByOwnerName(project.getOwner().getName());
+        } else {
+            entities = projectMapper.listProjects(project.getName());
+        }
+
         return PageUtil.toPageInfo(entities, projectConvertor::convert);
     }
 
@@ -71,7 +90,7 @@ public class ProjectService {
     public String createProject(Project project) {
         ProjectEntity entity = ProjectEntity.builder()
             .projectName(project.getName())
-            .ownerId(idConvertor.revert(project.getOwnerId()))
+            .ownerId(idConvertor.revert(project.getOwner().getId()))
             .isDefault(project.isDefault() ? 1 : 0)
             .build();
         projectMapper.createProject(entity);

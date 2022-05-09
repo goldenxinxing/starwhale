@@ -32,7 +32,6 @@ export default function JobLayout({ children }: IJobLayoutProps) {
     const [t] = useTranslation()
     const uuid = job?.uuid ?? '-'
     const project = projectInfo.data ?? {}
-    const projectName = project?.name ?? '-'
 
     const breadcrumbItems: INavItem[] = useMemo(() => {
         const items = [
@@ -46,7 +45,7 @@ export default function JobLayout({ children }: IJobLayoutProps) {
             },
         ]
         return items
-    }, [projectName, uuid, t])
+    }, [project?.id, jobId, uuid, t])
 
     return <BaseSubLayout breadcrumbItems={breadcrumbItems}>{children}</BaseSubLayout>
 }
