@@ -26,6 +26,7 @@ jobs:
       uses: actions/setup-java@v3
       with:
         java-version: '11'
+        distribution: 'temurin'
         cache: 'maven'
         server-id: starwhale # Value of the distributionManagement/repository/id field of the pom.xml
 
