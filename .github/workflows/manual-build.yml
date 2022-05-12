@@ -1,4 +1,4 @@
-name: Release by Tag CI
+name: Build Manually
 
 on:
   workflow_dispatch
