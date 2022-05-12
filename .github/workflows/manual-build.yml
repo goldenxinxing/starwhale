@@ -1,0 +1,35 @@
+name: Release by Tag CI
+
+on:
+  workflow_dispatch
+  # https://github.blog/changelog/2020-07-06-github-actions-manual-triggers-with-workflow_dispatch/
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      # docker-hub login
+      - name: Log in to Docker Hub
+        uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      # docker image build
+      - name: Docker image build
+        working-directory: ./docker
+        run: |
+          make build-base
+          make build-starwhale
+          make build-taskset
+          make build-server
+
+      - name: Docker image push
+        working-directory: ./docker
+        env:
+          RELEASE_VERSION: v${{ steps.tag.outputs.tag }}
+        run: make release
+      # todo cli build and upload
