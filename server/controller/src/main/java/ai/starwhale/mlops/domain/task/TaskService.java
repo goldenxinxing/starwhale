@@ -1,3 +1,19 @@
+/**
+ * Copyright 2022 Starwhale, Inc. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package ai.starwhale.mlops.domain.task;
 
 import ai.starwhale.mlops.api.protocol.report.resp.ResultPath;
@@ -29,9 +45,6 @@ import org.springframework.util.StringUtils;
 public class TaskService {
 
     @Resource
-    private IDConvertor idConvertor;
-
-    @Resource
     private TaskConvertor taskConvertor;
 
     @Resource
@@ -44,9 +57,9 @@ public class TaskService {
     private StorageAccessService storageAccessService;
 
 
-    public PageInfo<TaskVO> listTasks(String jobId, PageParams pageParams) {
+    public PageInfo<TaskVO> listTasks(Long jobId, PageParams pageParams) {
         PageHelper.startPage(pageParams.getPageNum(), pageParams.getPageSize());
-        List<TaskEntity> tasks = taskMapper.listTasks(idConvertor.revert(jobId));
+        List<TaskEntity> tasks = taskMapper.listTasks(jobId);
 
         return PageUtil.toPageInfo(tasks, taskConvertor::convert);
 
@@ -70,7 +83,7 @@ public class TaskService {
         ResultPath resultPath = resultPathOfTask(taskId);
         String logDir = resultPath.logDir();
         try(InputStream inputStream = storageAccessService.get(
-            logDir + PATH_SPLITERATOR + logFileName);) {
+            logDir + PATH_SPLITERATOR + logFileName)) {
             return new String(inputStream.readAllBytes());
         } catch (IOException e) {
             log.error("read logs path from storage failed {}",taskId,e);

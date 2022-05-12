@@ -1,8 +1,17 @@
-/*
- * Copyright 2022.1-2022
- * StarWhale.ai All right reserved. This software is the confidential and proprietary information of
- * StarWhale.ai ("Confidential Information"). You shall not disclose such Confidential Information and shall use it only
- * in accordance with the terms of the license agreement you entered into with StarWhale.com.
+/**
+ * Copyright 2022 Starwhale, Inc. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package ai.starwhale.mlops.api;
@@ -14,13 +23,15 @@ import ai.starwhale.mlops.api.protocol.swds.DatasetVersionVO;
 import ai.starwhale.mlops.api.protocol.swds.RevertSWDSRequest;
 import ai.starwhale.mlops.api.protocol.swds.SWDSRequest;
 import ai.starwhale.mlops.api.protocol.swds.SWDSVersionRequest;
+import ai.starwhale.mlops.api.protocol.swds.SWDatasetInfoVO;
 import ai.starwhale.mlops.api.protocol.swds.upload.UploadRequest;
 import ai.starwhale.mlops.api.protocol.swds.upload.UploadResult;
+import ai.starwhale.mlops.common.IDConvertor;
 import ai.starwhale.mlops.common.PageParams;
 import ai.starwhale.mlops.common.util.RandomUtil;
 import ai.starwhale.mlops.domain.swds.SWDSFile;
 import ai.starwhale.mlops.domain.swds.SWDSObject;
-import ai.starwhale.mlops.domain.swds.SWDSObject.Version;
+import ai.starwhale.mlops.domain.swds.SWDSVersion;
 import ai.starwhale.mlops.domain.swds.SWDatasetService;
 import ai.starwhale.mlops.domain.swds.upload.SwdsUploader;
 import ai.starwhale.mlops.domain.user.User;
@@ -42,6 +53,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -63,15 +75,18 @@ public class DatasetController implements DatasetApi{
     private UserService userService;
 
     @Resource
+    private IDConvertor idConvertor;
+
+    @Resource
     private SwdsUploader swdsUploader;
 
     @Override
     public ResponseEntity<ResponseMessage<String>> revertDatasetVersion(String projectId,
         String datasetId, RevertSWDSRequest revertRequest) {
         SWDSObject swmp = SWDSObject.builder()
-            .id(datasetId)
-            .projectId(projectId)
-            .latestVersion(Version.builder().id(revertRequest.getVersionId()).build())
+            .id(idConvertor.revert(datasetId))
+            .projectId(idConvertor.revert(projectId))
+            .currentVersion(SWDSVersion.builder().id(idConvertor.revert(revertRequest.getVersionId())).build())
             .build();
         Boolean res = swDatasetService.revertVersionTo(swmp);
         Assert.isTrue(Optional.of(res).orElseThrow(ApiOperationException::new));
@@ -82,28 +97,37 @@ public class DatasetController implements DatasetApi{
     public ResponseEntity<ResponseMessage<String>> deleteDatasetById(String projectId,
         String datasetId) {
         Boolean res = swDatasetService.deleteSWDS(
-            SWDSObject.builder().projectId(projectId).id(datasetId).build());
+            SWDSObject.builder()
+                .projectId(idConvertor.revert(projectId))
+                .id(idConvertor.revert(datasetId))
+                .build());
         Assert.isTrue(Optional.of(res).orElseThrow(ApiOperationException::new));
         return ResponseEntity.ok(Code.success.asResponse("success"));
     }
 
     @Override
-    public ResponseEntity<ResponseMessage<DatasetVersionVO>> getDatasetInfo(String projectId,
+    public ResponseEntity<ResponseMessage<SWDatasetInfoVO>> getDatasetInfo(String projectId,
         String datasetId) {
-        DatasetVersionVO swdsInfo = swDatasetService.getSWDSInfo(
-            SWDSObject.builder().id(datasetId).projectId(projectId).build());
+        SWDatasetInfoVO swdsInfo = swDatasetService.getSWDSInfo(
+            SWDSObject.builder()
+                .id(idConvertor.revert(datasetId))
+                .projectId(idConvertor.revert(projectId))
+                .build());
 
         return ResponseEntity.ok(Code.success.asResponse(swdsInfo));
     }
 
     @Override
     public ResponseEntity<ResponseMessage<PageInfo<DatasetVersionVO>>> listDatasetVersion(
-        String projectId, String datasetId, String dsVersionName, Integer pageNum, Integer pageSize) {
+        String projectId, String datasetId, String vName, String tag, Integer pageNum, Integer pageSize) {
         PageInfo<DatasetVersionVO> pageInfo = swDatasetService.listDatasetVersionHistory(
             SWDSObject.builder()
-                .projectId(projectId)
-                .id(datasetId)
-                .latestVersion(Version.builder().name(dsVersionName).build())
+                .projectId(idConvertor.revert(projectId))
+                .id(idConvertor.revert(datasetId))
+                .build(),
+            SWDSVersion.builder()
+                .name(vName)
+                .tag(tag)
                 .build(),
             PageParams.builder()
                 .pageNum(pageNum)
@@ -116,7 +140,7 @@ public class DatasetController implements DatasetApi{
     public ResponseEntity<ResponseMessage<String>> createDatasetVersion(String projectId, String datasetId,
         MultipartFile zipFile, SWDSVersionRequest swdsVersionRequest) {
         User user = userService.currentUserDetail();
-        String versionId = createVersion(projectId, datasetId, zipFile, swdsVersionRequest.getImportPath(), user.getId());
+        Long versionId = createVersion(projectId, idConvertor.revert(datasetId) , zipFile, swdsVersionRequest.getImportPath(), user.getId());
         return ResponseEntity.ok(Code.success
             .asResponse(String.valueOf(Optional.of(versionId).orElseThrow(ApiOperationException::new))));
     }
@@ -156,7 +180,7 @@ public class DatasetController implements DatasetApi{
     public ResponseEntity<ResponseMessage<String>> modifyDatasetVersionInfo(String projectId, String datasetId,
         String versionId, String tag) {
         Boolean res = swDatasetService.modifySWDSVersion(
-            Version.builder().id(versionId).tag(tag).build());
+            SWDSVersion.builder().id(idConvertor.revert(versionId)).tag(tag).build());
         Assert.isTrue(Optional.of(res).orElseThrow(ApiOperationException::new));
         return ResponseEntity.ok(Code.success.asResponse("success"));
     }
@@ -166,11 +190,13 @@ public class DatasetController implements DatasetApi{
         Integer pageNum, Integer pageSize) {
         PageInfo<DatasetVO> pageInfo;
         if(StringUtils.hasText(versionId)) {
-            List<DatasetVO> voList = swDatasetService.findDatasetsByVersionIds(List.of(versionId.split("[,;]")));
+            List<DatasetVO> voList = swDatasetService.findDatasetsByVersionIds(
+                Stream.of(versionId.split("[,;]")).map(idConvertor::revert).collect(
+                Collectors.toList()));
             pageInfo = PageInfo.of(voList);
         } else {
             pageInfo = swDatasetService.listSWDataset(
-                SWDSObject.builder().projectId(projectId).build(),
+                SWDSObject.builder().projectId(idConvertor.revert(projectId)).build(),
                 PageParams.builder().pageNum(pageNum).pageSize(pageSize).build());
         }
         return ResponseEntity.ok(Code.success.asResponse(pageInfo));
@@ -180,20 +206,20 @@ public class DatasetController implements DatasetApi{
     public ResponseEntity<ResponseMessage<String>> createDataset(String projectId,
         String datasetName, MultipartFile zipFile, SWDSRequest swdsRequest) {
         User user = userService.currentUserDetail();
-        String modelId = swDatasetService.addDataset(
-            SWDSObject.builder().projectId(projectId).name(datasetName).ownerId(user.getId())
+        Long datasetId = swDatasetService.addDataset(
+            SWDSObject.builder().projectId(idConvertor.revert(projectId)).name(datasetName).ownerId(user.getId())
                 .build());
-        String versionId = createVersion(projectId, modelId, zipFile, swdsRequest.getImportPath(), user.getId());
+        Long versionId = createVersion(projectId, datasetId, zipFile, swdsRequest.getImportPath(), user.getId());
         return ResponseEntity.ok(Code.success
             .asResponse(String.valueOf(Optional.of(versionId).orElseThrow(ApiOperationException::new))));
     }
 
-    private String createVersion(String projectId, String datasetId, MultipartFile zipFile, String importPath, String userId) {
+    private Long createVersion(String projectId, Long datasetId, MultipartFile zipFile, String importPath, Long userId) {
         String path = importPath;
         String meta = "";
         if (zipFile != null) {
             // upload file
-            SWDSFile swdsFile = new SWDSFile(projectId, datasetId);
+            SWDSFile swdsFile = new SWDSFile(projectId, String.valueOf(datasetId));
             File dest = new File(swdsFile.getZipFilePath(), swdsFile.generateZipFileName());
             try {
                 zipFile.transferTo(dest);
@@ -205,7 +231,7 @@ public class DatasetController implements DatasetApi{
         }
         SWDSObject swmp = SWDSObject.builder()
             .id(datasetId)
-            .latestVersion(Version.builder()
+            .currentVersion(SWDSVersion.builder()
                 .storagePath(path)
                 .meta(meta)
                 .name(RandomUtil.randomHexString(8))

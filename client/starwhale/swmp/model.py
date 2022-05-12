@@ -3,7 +3,6 @@ import os
 import typing as t
 from pathlib import Path
 import platform
-from datetime import datetime
 import tarfile
 
 from loguru import logger
@@ -12,31 +11,38 @@ from fs.walk import Walker
 from fs import open_fs
 
 from starwhale import __version__
-from starwhale.utils.error import (
-    FileTypeError, FileFormatError, NotFoundError
-)
-from starwhale.utils import gen_uniq_version
+from starwhale.utils.error import FileTypeError, FileFormatError, NotFoundError
+from starwhale.utils import gen_uniq_version, console, now_str
 from starwhale.utils.fs import ensure_dir, ensure_file, ensure_link
-from starwhale.utils.venv import (
-    detect_pip_req, dump_python_dep_env, SUPPORTED_PIP_REQ
-)
+from starwhale.utils.venv import detect_pip_req, dump_python_dep_env, SUPPORTED_PIP_REQ
 from starwhale.utils.load import import_cls
 from starwhale.consts import (
-    DEFAULT_STARWHALE_API_VERSION, FMT_DATETIME,
-    DEFAULT_MANIFEST_NAME, DEFAULT_MODEL_YAML_NAME,
+    DEFAULT_STARWHALE_API_VERSION,
+    DEFAULT_MANIFEST_NAME,
+    DEFAULT_MODEL_YAML_NAME,
     DEFAULT_COPY_WORKERS,
+    SHORT_VERSION_CNT,
 )
 from .store import ModelPackageLocalStore
+from starwhale.utils.progress import run_with_progress_bar
 
 
 class ModelRunConfig(object):
 
-    #TODO: use attr to tune class
-    def __init__(self, ppl: str, args: str="", runtime: str="",
-                 base_image: str="", pkg_system: str="", pip_req: str="",
-                 pkg_data: t.Union[t.List[str], None]=None,
-                 exclude_pkg_data: t.Union[t.List[str], None]=None,
-                 smoketest: str="", envs:t.Union[t.List[str], None]=None):
+    # TODO: use attr to tune class
+    def __init__(
+        self,
+        ppl: str,
+        args: str = "",
+        runtime: str = "",
+        base_image: str = "",
+        pkg_system: str = "",
+        pip_req: str = "",
+        pkg_data: t.Union[t.List[str], None] = None,
+        exclude_pkg_data: t.Union[t.List[str], None] = None,
+        smoketest: str = "",
+        envs: t.Union[t.List[str], None] = None,
+    ):
         self.ppl = ppl.strip()
         self.args = args
         self.runtime = runtime.strip()
@@ -54,7 +60,7 @@ class ModelRunConfig(object):
         if not self.ppl:
             raise FileFormatError("need ppl field")
 
-        if not(self.runtime or self.base_image):
+        if not (self.runtime or self.base_image):
             raise FileFormatError("runtime or base_image must set at least one field")
 
     def __str__(self) -> str:
@@ -66,16 +72,23 @@ class ModelRunConfig(object):
 
 class ModelConfig(object):
 
-    #TODO: use attr to tune class
-    def __init__(self, name: str, model: t.List[str],
-        config: t.List[str], run: dict, desc: str = "",
-        tag: t.List[str] = [], version: str=DEFAULT_STARWHALE_API_VERSION):
+    # TODO: use attr to tune class
+    def __init__(
+        self,
+        name: str,
+        model: t.List[str],
+        config: t.List[str],
+        run: dict,
+        desc: str = "",
+        tag: t.List[str] = [],
+        version: str = DEFAULT_STARWHALE_API_VERSION,
+    ):
 
-        #TODO: format model name
+        # TODO: format model name
         self.name = name
         self.model = model or []
         self.config = config or []
-        #TODO: support artifacts: local or remote
+        # TODO: support artifacts: local or remote
         self.run = ModelRunConfig(**run)
         self.desc = desc
         self.tag = tag
@@ -84,17 +97,17 @@ class ModelConfig(object):
         self._validator()
 
     def _validator(self):
-        #TODO: use attr validator
+        # TODO: use attr validator
         if not self.model:
             raise FileFormatError("need at least one model")
 
-        #TODO: add more validation
-        #TODO: add name check
+        # TODO: add more validation
+        # TODO: add name check
 
     @classmethod
     def create_by_yaml(cls, fpath: str) -> "ModelConfig":
         with open(fpath) as f:
-             c = yaml.safe_load(f)
+            c = yaml.safe_load(f)
 
         return cls(**c)
 
@@ -106,13 +119,19 @@ class ModelConfig(object):
 
 
 class ModelPackage(object):
-
-    def __init__(self, workdir: str, model_yaml_fname: str=DEFAULT_MODEL_YAML_NAME, skip_gen_env: bool=False) -> None:
-        #TODO: format workdir path?
+    def __init__(
+        self,
+        workdir: str,
+        model_yaml_fname: str = DEFAULT_MODEL_YAML_NAME,
+        skip_gen_env: bool = False,
+    ) -> None:
+        # TODO: format workdir path?
         self.workdir = Path(workdir)
         self._skip_gen_env = skip_gen_env
         self._model_yaml_fname = model_yaml_fname
-        self._swmp_config = self.load_model_config(os.path.join(workdir, model_yaml_fname))
+        self._swmp_config = self.load_model_config(
+            os.path.join(workdir, model_yaml_fname)
+        )
         self._store = ModelPackageLocalStore()
 
         self._swmp_store = Path()
@@ -120,7 +139,8 @@ class ModelPackage(object):
         self._version = ""
         self._snapshot = None
         self._name = self._swmp_config.name
-        self._manifest = {} #TODO: use manifest classget_conda_env
+        self._manifest: t.Dict[str, t.Any] = {}  # TODO: use manifest classget_conda_env
+        self._console = console
 
         self._load_config_envs()
 
@@ -142,12 +162,17 @@ class ModelPackage(object):
                 os.environ[_k] = _v
 
     @classmethod
-    def _load_runnable_mp(cls, swmp: str=".", _model_yaml_fname: str=DEFAULT_MODEL_YAML_NAME, kw: dict={}) -> "ModelPackage":
+    def _load_runnable_mp(
+        cls,
+        swmp: str = ".",
+        _model_yaml_fname: str = DEFAULT_MODEL_YAML_NAME,
+        kw: dict = {},
+    ) -> "ModelPackage":
         if swmp.count(":") == 1:
             _name, _version = swmp.split(":")
-            #TODO: tune model package local store init twice
-            #TODO: guess _version?
-            #TODO: model.yaml auto-detect
+            # TODO: tune model package local store init twice
+            # TODO: guess _version?
+            # TODO: model.yaml auto-detect
             _workdir = ModelPackageLocalStore().workdir / _name / _version / "src"
         else:
             _workdir = Path(swmp)
@@ -161,21 +186,32 @@ class ModelPackage(object):
         return mp
 
     @classmethod
-    def cmp(cls, swmp: str=".", _model_yaml_fname: str=DEFAULT_MODEL_YAML_NAME, kw: dict={}) -> None:
+    def cmp(
+        cls,
+        swmp: str = ".",
+        _model_yaml_fname: str = DEFAULT_MODEL_YAML_NAME,
+        kw: dict = {},
+    ) -> None:
         mp = cls._load_runnable_mp(swmp, _model_yaml_fname, kw)
         _obj = mp._load_user_ppl_obj(kw)
         _obj._starwhale_internal_run_cmp()
         logger.info(f"finish run cmp: {_obj}")
 
     @classmethod
-    def ppl(cls, swmp: str=".", _model_yaml_fname: str=DEFAULT_MODEL_YAML_NAME, kw: dict={}) -> None:
+    def ppl(
+        cls,
+        swmp: str = ".",
+        _model_yaml_fname: str = DEFAULT_MODEL_YAML_NAME,
+        kw: dict = {},
+    ) -> None:
         mp = cls._load_runnable_mp(swmp, _model_yaml_fname, kw)
         _obj = mp._load_user_ppl_obj(kw)
         _obj._starwhale_internal_run_ppl()
         logger.info(f"finish run ppl: {_obj}")
 
-    def _load_user_ppl_obj(self, kw: dict={}):
+    def _load_user_ppl_obj(self, kw: dict = {}):
         from starwhale.api._impl.model import _RunConfig
+
         _RunConfig.set_env(kw)
 
         _s = f"{self._swmp_config.run.ppl}@{self.workdir}"
@@ -199,20 +235,21 @@ class ModelPackage(object):
             if not (self.workdir / path).exists():
                 raise FileFormatError(f"model - {path} is not existed")
 
-        #TODO: add more model.yaml section validation
-        #TODO: add 'swcli model check' cmd
+        # TODO: add more model.yaml section validation
+        # TODO: add 'swcli model check' cmd
 
     @logger.catch
     def _do_build(self):
-        #TODO: add progress bar
-        self._gen_version()
-        self._prepare_snapshot()
-        self._copy_src()
-        self._dump_dep()
-
-        self._render_docker_script()
-        self._render_manifest()
-        self._make_swmp_tar()
+        operations = [
+            (self._gen_version, 5, "gen version"),
+            (self._prepare_snapshot, 5, "prepare snapshot"),
+            (self._copy_src, 15, "copy src"),
+            (self._dump_dep, 50, "dump python depency"),
+            (self._render_docker_script, 1, "render docker script"),
+            (self._render_manifest, 5, "render manifest"),
+            (self._make_swmp_tar, 20, "build swmp"),
+        ]
+        run_with_progress_bar("swmp building...", operations, self._console)
 
     def _gen_version(self) -> None:
         logger.info("[step:version]create swmp version...")
@@ -220,15 +257,16 @@ class ModelPackage(object):
             self._version = gen_uniq_version(self._swmp_config.name)
 
         self._manifest["version"] = self._version
-        self._manifest["created_at"] = datetime.now().astimezone().strftime(FMT_DATETIME)
+        self._manifest["created_at"] = now_str()
         logger.info(f"[step:version]swmp version is {self._version}")
+        self._console.print(f":new: swmp version {self._version[:SHORT_VERSION_CNT]}")
 
     def _prepare_snapshot(self):
         logger.info("[step:prepare-snapshot]prepare swmp snapshot dirs...")
 
         self._swmp_store = self._store.pkgdir / self._name
         self._snapshot_workdir = self._store.workdir / self._name / self._version
-        #TODO: graceful clear?
+        # TODO: graceful clear?
         if self._snapshot_workdir.exists():
             raise Exception(f"{self._snapshot_workdir} has already existed, will abort")
 
@@ -238,10 +276,15 @@ class ModelPackage(object):
         ensure_dir(self._conda_dir)
         ensure_dir(self._python_dir / "venv")
 
-        #TODO: cleanup garbage dir
-        #TODO: add lock/flag file for gc
+        # TODO: cleanup garbage dir
+        # TODO: add lock/flag file for gc
 
-        logger.info(f"[step:prepare-snapshot]swmp snapshot workdir: {self._snapshot_workdir}")
+        logger.info(
+            f"[step:prepare-snapshot]swmp snapshot workdir: {self._snapshot_workdir}"
+        )
+        self._console.print(
+            f":file_folder: swmp workdir: [underline]{self._snapshot_workdir}[/]"
+        )
 
     @property
     def _model_pip_req(self) -> str:
@@ -265,32 +308,44 @@ class ModelPackage(object):
         return self._snapshot_workdir / "src"
 
     def _dump_dep(self) -> None:
-        logger.info(f"[step:dep]start dump python dep...")
+        logger.info("[step:dep]start dump python dep...")
 
         _manifest = dump_python_dep_env(
             dep_dir=self._snapshot_workdir / "dep",
             pip_req_fpath=self._model_pip_req,
             skip_gen_env=self._skip_gen_env,
+            console=self._console,
         )
         self._manifest["dep"] = _manifest
 
-        logger.info(f"[step:dep]finish dump dep")
+        logger.info("[step:dep]finish dump dep")
 
     def _copy_src(self) -> None:
-        logger.info(f"[step:copy]start to copy src {self.workdir} -> {self._src_dir} ...")
+        logger.info(
+            f"[step:copy]start to copy src {self.workdir} -> {self._src_dir} ..."
+        )
+        self._console.print(":thumbs_up: try to copy source code files...")
         _mc = self._swmp_config
         workdir_fs = open_fs(str(self.workdir.resolve()))
         snapshot_fs = open_fs(str(self._snapshot_workdir.resolve()))
         src_fs = open_fs(str(self._src_dir.resolve()))
-        #TODO: support exclude dir
-        #TODO: support glob pkg_data
-        #TODO: ignore some folders, such as __pycache__
-        copy_file(workdir_fs, self._model_yaml_fname, snapshot_fs, DEFAULT_MODEL_YAML_NAME)
-        copy_fs(workdir_fs, src_fs,
-                walker=Walker(
-                    filter=["*.py", self._model_yaml_fname] + SUPPORTED_PIP_REQ + _mc.run.pkg_data,
-                    exclude_dirs=_mc.run.exclude_pkg_data,
-                ), workers=DEFAULT_COPY_WORKERS)
+        # TODO: support exclude dir
+        # TODO: support glob pkg_data
+        # TODO: ignore some folders, such as __pycache__
+        copy_file(
+            workdir_fs, self._model_yaml_fname, snapshot_fs, DEFAULT_MODEL_YAML_NAME
+        )
+        copy_fs(
+            workdir_fs,
+            src_fs,
+            walker=Walker(
+                filter=["*.py", self._model_yaml_fname]
+                + SUPPORTED_PIP_REQ
+                + _mc.run.pkg_data,
+                exclude_dirs=_mc.run.exclude_pkg_data,
+            ),
+            workers=DEFAULT_COPY_WORKERS,
+        )
 
         for _fname in _mc.config + _mc.model:
             copy_file(workdir_fs, _fname, src_fs, _fname)
@@ -304,7 +359,7 @@ class ModelPackage(object):
             os=platform.system(),
             sw_version=__version__,
         )
-        #TODO: add signature for import files: model, config
+        # TODO: add signature for import files: model, config
         _f = self._snapshot_workdir / DEFAULT_MANIFEST_NAME
         ensure_file(_f, yaml.dump(self._manifest, default_flow_style=False))
         logger.info(f"[step:manifest]render manifest: {_f}")
@@ -316,10 +371,13 @@ class ModelPackage(object):
             tar.add(str(self._snapshot_workdir), arcname="")
 
         ensure_link(out, self._swmp_store / "latest")
-        logger.info(f"[step:tar]finish to make swmp")
+        logger.info("[step:tar]finish to make swmp")
+        self._console.print(
+            f":hibiscus: congratulation! you can run [blink red bold] swcli model info {self._name}:{self._version}[/]"
+        )
 
     def _render_docker_script(self):
-        #TODO: agent run and smoketest step
+        # TODO: agent run and smoketest step
         pass
 
     def load_model_config(self, fpath: str) -> ModelConfig:

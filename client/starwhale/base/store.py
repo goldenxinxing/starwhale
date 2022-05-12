@@ -1,22 +1,33 @@
 import typing as t
 from pathlib import Path
-from collections import namedtuple
 from abc import ABCMeta, abstractmethod
 
 from rich import box
-from rich.console import Console
 from rich.table import Table
 
 from starwhale.utils.config import SWCliConfigMixed
+from starwhale.utils import console
 
 
 class LocalStorage(SWCliConfigMixed):
     LATEST_TAG = "latest"
-    SWobjMeta = namedtuple("SWobjMeta", ["name", "version", "tag", "environment", "size", "generate", "created"])
+
+    class SWobjMeta(t.NamedTuple):
+        name: str
+        version: str
+        tag: str
+        environment: str
+        size: str
+        generate: str
+        created: str
 
     __metaclass__ = ABCMeta
 
-    def _parse_swobj(self, sw_name:str) -> t.Tuple[str, str]:
+    def __init__(self, swcli_config: t.Optional[t.Dict[str, t.Any]] = None) -> None:
+        super().__init__(swcli_config)
+        self._console = console
+
+    def _parse_swobj(self, sw_name: str) -> t.Tuple[str, str]:
         if ":" not in sw_name:
             _name, _version = sw_name, self.LATEST_TAG
         else:
@@ -27,7 +38,7 @@ class LocalStorage(SWCliConfigMixed):
         return _name, _version
 
     def _guess(self, rootdir: Path, name: str) -> Path:
-        #TODO: support more guess method, such as tag
+        # TODO: support more guess method, such as tag
         _path = rootdir / name
         if _path.exists():
             return _path
@@ -39,7 +50,7 @@ class LocalStorage(SWCliConfigMixed):
             return _path
 
     @abstractmethod
-    def list(self, filter: str="", title: str="", caption: str="") -> None:
+    def list(self, filter: str = "", title: str = "", caption: str = "") -> None:
         title = title or "List StarWhale obj[swmp|swds] in local storage"
         caption = caption or f"@{self.rootdir}"
 
@@ -53,12 +64,14 @@ class LocalStorage(SWCliConfigMixed):
         table.add_column("Created", justify="right")
 
         for s in self.iter_local_swobj():
-            table.add_row(s.name, s.version, s.tag, s.size, s.environment, s.generate, s.created)
+            table.add_row(
+                s.name, s.version, s.tag, s.size, s.environment, s.generate, s.created
+            )
 
-        Console().print(table)
+        self._console.print(table)
 
     @abstractmethod
-    def iter_local_swobj(self) -> "LocalStorage.SWobjMeta" :
+    def iter_local_swobj(self) -> t.Generator["LocalStorage.SWobjMeta", None, None]:
         raise NotImplementedError
 
     @abstractmethod
@@ -78,5 +91,5 @@ class LocalStorage(SWCliConfigMixed):
         raise NotImplementedError
 
     @abstractmethod
-    def gc(self, dry_run: bool=False) -> None:
+    def gc(self, dry_run: bool = False) -> None:
         raise NotImplementedError

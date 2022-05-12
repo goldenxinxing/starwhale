@@ -22,6 +22,7 @@
                a.id as agent_id,
                inet_ntoa(a.agent_ip) as agent_ip,
                a.agent_version,
+               a.agent_status,
                a.serial_number as agent_serial_number,
                a.connect_time,
                a.created_time as agent_created_time,
@@ -45,7 +46,7 @@
 
     <insert id="addTask" parameterType="ai.starwhale.mlops.domain.task.TaskEntity" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
         insert into task_info(task_uuid, job_id, agent_id, task_status, task_type,result_path, task_request)
-        values(#{taskUuid}, #{jobId}, #{agentId}, #{taskStatus}, #{taskType}, #{resultPath}, #{taskRequest})
+        values(#{task.taskUuid}, #{task.jobId}, #{task.agentId}, #{task.taskStatus}, #{task.taskType}, #{task.resultPath}, #{task.taskRequest})
     </insert>
 
     <insert id="addAll" parameterType="java.util.List" useGeneratedKeys="true" keyProperty="id" keyColumn="id">

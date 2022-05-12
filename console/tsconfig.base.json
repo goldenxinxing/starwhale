@@ -19,15 +19,15 @@
     "noEmit": true,
     "jsx": "react",
     "typeRoots": [
+      "./@types",
       "./node_modules/@types",
-      "./@types"
     ]
   },
   "include": [
-    "src"
+    "src",
   ],
   "exclude": [
-    "src/stories"
+    "src/stories",
   ],
   "extends": "./tsconfig.paths.json"
 }

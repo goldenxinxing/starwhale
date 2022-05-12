@@ -1,3 +1,19 @@
+/**
+ * Copyright 2022 Starwhale, Inc. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package ai.starwhale.mlops.api;
 
 import ai.starwhale.mlops.api.protocol.Code;
@@ -14,6 +30,8 @@ import ai.starwhale.mlops.exception.SWValidationException;
 import ai.starwhale.mlops.exception.SWValidationException.ValidSubject;
 import ai.starwhale.mlops.exception.api.StarWhaleApiException;
 import com.github.pagehelper.PageInfo;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 import javax.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -46,13 +64,17 @@ public class JobController implements JobApi{
     public ResponseEntity<ResponseMessage<PageInfo<JobVO>>> listJobs(String projectId, String swmpId,
         Integer pageNum, Integer pageSize) {
 
-        PageInfo<JobVO> jobVOS = jobService.listJobs(projectId, swmpId, new PageParams(pageNum, pageSize));
+        PageInfo<JobVO> jobVOS = jobService.listJobs(idConvertor.revert(projectId), idConvertor.revert(swmpId),
+            PageParams.builder()
+                .pageNum(pageNum)
+                .pageSize(pageSize)
+                .build());
         return ResponseEntity.ok(Code.success.asResponse(jobVOS));
     }
 
     @Override
     public ResponseEntity<ResponseMessage<JobVO>> findJob(String projectId, String jobId) {
-        JobVO job = jobService.findJob(projectId, jobId);
+        JobVO job = jobService.findJob(idConvertor.revert(projectId), idConvertor.revert(jobId));
         return ResponseEntity.ok(Code.success.asResponse(job));
     }
 
@@ -60,16 +82,27 @@ public class JobController implements JobApi{
     public ResponseEntity<ResponseMessage<PageInfo<TaskVO>>> listTasks(String projectId,
         String jobId, Integer pageNum, Integer pageSize) {
 
-        PageInfo<TaskVO> pageInfo = taskService.listTasks(jobId, new PageParams(pageNum, pageSize));
+        PageInfo<TaskVO> pageInfo = taskService.listTasks(idConvertor.revert(jobId),
+            PageParams.builder()
+            .pageNum(pageNum)
+            .pageSize(pageSize)
+            .build());
         return ResponseEntity.ok(Code.success.asResponse(pageInfo));
     }
 
     @Override
     public ResponseEntity<ResponseMessage<String>> createJob(String projectId,
         JobRequest jobRequest) {
-        String id = jobService.createJob(jobRequest, projectId);
+        Long jobId = jobService.createJob(idConvertor.revert(projectId),
+            idConvertor.revert(jobRequest.getBaseImageId()),
+            idConvertor.revert(jobRequest.getModelVersionId()),
+            Arrays.stream(jobRequest.getDatasetVersionIds().split("[,;]"))
+            .map(idConvertor::revert)
+            .collect(Collectors.toList()),
+            Integer.valueOf(jobRequest.getDeviceId()),
+            jobRequest.getDeviceCount());
 
-        return ResponseEntity.ok(Code.success.asResponse(id));
+        return ResponseEntity.ok(Code.success.asResponse(idConvertor.convert(jobId)));
     }
 
     @Override
@@ -89,7 +122,8 @@ public class JobController implements JobApi{
     @Override
     public ResponseEntity<ResponseMessage<Object>> getJobResult(String projectId,
         String jobId) {
-        Object jobResult = jobService.getJobResult(projectId, jobId);
+        Object jobResult = jobService.getJobResult(idConvertor.revert(projectId),
+            idConvertor.revert(jobId));
         return ResponseEntity.ok(Code.success.asResponse(jobResult));
     }
 

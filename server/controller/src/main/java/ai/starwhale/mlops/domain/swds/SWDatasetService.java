@@ -1,20 +1,30 @@
-/*
- * Copyright 2022.1-2022
- * StarWhale.ai All right reserved. This software is the confidential and proprietary information of
- * StarWhale.ai ("Confidential Information"). You shall not disclose such Confidential Information and shall use it only
- * in accordance with the terms of the license agreement you entered into with StarWhale.ai.
+/**
+ * Copyright 2022 Starwhale, Inc. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package ai.starwhale.mlops.domain.swds;
 
+import ai.starwhale.mlops.api.protocol.StorageFileVO;
 import ai.starwhale.mlops.api.protocol.swds.DatasetVO;
 import ai.starwhale.mlops.api.protocol.swds.DatasetVersionVO;
-import ai.starwhale.mlops.common.IDConvertor;
+import ai.starwhale.mlops.api.protocol.swds.SWDatasetInfoVO;
 import ai.starwhale.mlops.common.PageParams;
 import ai.starwhale.mlops.common.util.PageUtil;
 import ai.starwhale.mlops.domain.project.ProjectEntity;
 import ai.starwhale.mlops.domain.project.ProjectManager;
-import ai.starwhale.mlops.domain.swds.SWDSObject.Version;
+import ai.starwhale.mlops.domain.storage.StorageService;
 import ai.starwhale.mlops.domain.swds.mapper.SWDatasetMapper;
 import ai.starwhale.mlops.domain.swds.mapper.SWDatasetVersionMapper;
 import ai.starwhale.mlops.exception.SWProcessException;
@@ -24,6 +34,7 @@ import ai.starwhale.mlops.exception.SWValidationException.ValidSubject;
 import ai.starwhale.mlops.exception.api.StarWhaleApiException;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+import java.io.IOException;
 import java.util.List;
 import java.util.stream.Collectors;
 import javax.annotation.Resource;
@@ -42,13 +53,13 @@ public class SWDatasetService {
     private SWDatasetVersionMapper swdsVersionMapper;
 
     @Resource
-    private IDConvertor idConvertor;
-
-    @Resource
     private SWDSConvertor swdsConvertor;
 
     @Resource
     private SWDSVersionConvertor versionConvertor;
+
+    @Resource
+    private StorageService storageService;
 
     @Resource
     private ProjectManager projectManager;
@@ -56,34 +67,57 @@ public class SWDatasetService {
     public PageInfo<DatasetVO> listSWDataset(SWDSObject swds, PageParams pageParams) {
         PageHelper.startPage(pageParams.getPageNum(), pageParams.getPageSize());
         List<SWDatasetEntity> entities = swdsMapper.listDatasets(
-            idConvertor.revert(swds.getProjectId()), swds.getName());
+            swds.getProjectId(), swds.getName());
 
         return PageUtil.toPageInfo(entities, swdsConvertor::convert);
     }
 
     public Boolean deleteSWDS(SWDSObject swds) {
-        Long id = idConvertor.revert(swds.getId());
+        Long id = swds.getId();
         int res = swdsMapper.deleteDataset(id);
         log.info("SWDS has been deleted. ID={}", swds.getId());
         return res > 0;
     }
 
-    public DatasetVersionVO getSWDSInfo(SWDSObject swds) {
-        Long dsID = idConvertor.revert(swds.getId());
+    public SWDatasetInfoVO getSWDSInfo(SWDSObject swds) {
+        Long dsID = swds.getId();
+        SWDatasetEntity ds = swdsMapper.findDatasetById(dsID);
+        if(ds == null) {
+            throw new StarWhaleApiException(new SWValidationException(ValidSubject.SWDS)
+                .tip("Unable to find swds " + dsID), HttpStatus.BAD_REQUEST);
+        }
 
-        SWDatasetVersionEntity entity = swdsVersionMapper.getLatestVersion(dsID);
-        if(entity == null) {
+        SWDatasetVersionEntity versionEntity = swdsVersionMapper.getLatestVersion(dsID);
+        if(versionEntity == null) {
             throw new StarWhaleApiException(new SWValidationException(ValidSubject.SWMP)
                 .tip("Unable to find the latest version of swmp " + dsID), HttpStatus.BAD_REQUEST);
         }
 
-        return versionConvertor.convert(entity);
+        //Get file list in storage
+        try {
+            String storagePath = versionEntity.getStoragePath();
+            List<StorageFileVO> collect = storageService.listStorageFile(storagePath);
+
+            return SWDatasetInfoVO.builder()
+                .swdsName(ds.getDatasetName())
+                .versionName(versionEntity.getVersionName())
+                .versionTag(versionEntity.getVersionTag())
+                .versionMeta(versionEntity.getVersionMeta())
+                .files(collect)
+                .build();
+
+        } catch (IOException e) {
+            log.error("list swds storage", e);
+            throw new StarWhaleApiException(new SWProcessException(ErrorType.STORAGE)
+                .tip(e.getMessage()), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+
     }
 
 
-    public Boolean modifySWDSVersion(Version version) {
+    public Boolean modifySWDSVersion(SWDSVersion version) {
         SWDatasetVersionEntity entity = SWDatasetVersionEntity.builder()
-            .id(idConvertor.revert(version.getId()))
+            .id(version.getId())
             .versionTag(version.getTag())
             .storagePath(version.getStoragePath())
             .build();
@@ -93,25 +127,25 @@ public class SWDatasetService {
     }
 
     public Boolean revertVersionTo(SWDSObject swds) {
-        Long swdsId = idConvertor.revert(swds.getId());
-        Long revertTo = idConvertor.revert(swds.getLatestVersion().getId());
+        Long swdsId = swds.getId();
+        Long revertTo = swds.getCurrentVersion().getId();
         int res = swdsVersionMapper.revertTo(swdsId, revertTo);
         log.info("SWDS Version {} has been revert to {}", swdsId, revertTo);
         return res > 0;
     }
 
-    public PageInfo<DatasetVersionVO> listDatasetVersionHistory(SWDSObject swds, PageParams pageParams) {
+    public PageInfo<DatasetVersionVO> listDatasetVersionHistory(SWDSObject swds, SWDSVersion version, PageParams pageParams) {
         PageHelper.startPage(pageParams.getPageNum(), pageParams.getPageSize());
         List<SWDatasetVersionEntity> entities = swdsVersionMapper.listVersions(
-            idConvertor.revert(swds.getId()), swds.getLatestVersion().getName());
+            swds.getId(), version.getName(), version.getTag());
         return PageUtil.toPageInfo(entities, versionConvertor::convert);
     }
 
-    public String addDataset(SWDSObject swds) {
+    public Long addDataset(SWDSObject swds) {
         SWDatasetEntity entity = SWDatasetEntity.builder()
             .datasetName(swds.getName())
-            .ownerId(idConvertor.revert(swds.getOwnerId()))
-            .projectId(idConvertor.revert(swds.getProjectId()))
+            .ownerId(swds.getOwnerId())
+            .projectId(swds.getProjectId())
             .build();
         if(entity.getProjectId() == 0) {
             ProjectEntity defaultProject = projectManager.findDefaultProject();
@@ -123,28 +157,25 @@ public class SWDatasetService {
         }
         swdsMapper.addDataset(entity);
         log.info("SWDS has been created. ID={}", entity.getId());
-        return idConvertor.convert(entity.getId());
+        return entity.getId();
     }
 
-    public String addVersion(SWDSObject swds) {
+    public Long addVersion(SWDSObject swds) {
         SWDatasetVersionEntity entity = SWDatasetVersionEntity.builder()
-            .datasetId(idConvertor.revert(swds.getId()))
-            .ownerId(idConvertor.revert(swds.getLatestVersion().getOwnerId()))
-            .versionTag(swds.getLatestVersion().getTag())
-            .versionName(swds.getLatestVersion().getName())
-            .versionMeta(swds.getLatestVersion().getMeta())
-            .storagePath(swds.getLatestVersion().getStoragePath())
+            .datasetId(swds.getId())
+            .ownerId(swds.getCurrentVersion().getOwnerId())
+            .versionTag(swds.getCurrentVersion().getTag())
+            .versionName(swds.getCurrentVersion().getName())
+            .versionMeta(swds.getCurrentVersion().getMeta())
+            .storagePath(swds.getCurrentVersion().getStoragePath())
             .build();
         swdsVersionMapper.addNewVersion(entity);
         log.info("SWDS Version has been created. DSID={}, VID={}", entity.getDatasetId(), entity.getId());
-        return idConvertor.convert(entity.getId());
+        return entity.getId();
     }
 
-    public List<DatasetVO> findDatasetsByVersionIds(List<String> versionIds) {
-        List<Long> vIds = versionIds.stream()
-            .map(idConvertor::revert)
-            .collect(Collectors.toList());
-        List<SWDatasetVersionEntity> versions = swdsVersionMapper.findVersionsByIds(vIds);
+    public List<DatasetVO> findDatasetsByVersionIds(List<Long> versionIds) {
+        List<SWDatasetVersionEntity> versions = swdsVersionMapper.findVersionsByIds(versionIds);
 
         List<Long> ids = versions.stream()
             .map(SWDatasetVersionEntity::getDatasetId)

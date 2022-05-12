@@ -1,19 +1,35 @@
-/*
- * Copyright 2022.1-2022
- * StarWhale.ai All right reserved. This software is the confidential and proprietary information of
- * StarWhale.ai ("Confidential Information"). You shall not disclose such Confidential Information and shall use it only
- * in accordance with the terms of the license agreement you entered into with StarWhale.com.
+/**
+ * Copyright 2022 Starwhale, Inc. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package ai.starwhale.mlops.api;
 
 import ai.starwhale.mlops.api.protocol.Code;
 import ai.starwhale.mlops.api.protocol.ResponseMessage;
+import ai.starwhale.mlops.api.protocol.runtime.BaseImageRequest;
 import ai.starwhale.mlops.api.protocol.runtime.BaseImageVO;
 import ai.starwhale.mlops.api.protocol.runtime.DeviceVO;
+import ai.starwhale.mlops.common.IDConvertor;
+import ai.starwhale.mlops.domain.job.BaseImage;
 import ai.starwhale.mlops.domain.job.EnvService;
+import ai.starwhale.mlops.exception.SWProcessException;
+import ai.starwhale.mlops.exception.SWProcessException.ErrorType;
+import ai.starwhale.mlops.exception.api.StarWhaleApiException;
 import java.util.List;
 import javax.annotation.Resource;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -24,6 +40,9 @@ public class EnvController implements EnvApi{
 
     @Resource
     private EnvService envService;
+
+    @Resource
+    private IDConvertor idConvertor;
 
     @Override
     public ResponseEntity<ResponseMessage<List<BaseImageVO>>> listBaseImage(String imageName) {
@@ -37,4 +56,26 @@ public class EnvController implements EnvApi{
         List<DeviceVO> deviceVOS = envService.listDevices();
         return ResponseEntity.ok(Code.success.asResponse(deviceVOS));
     }
+
+    @Override
+    public ResponseEntity<ResponseMessage<String>> createImage(BaseImageRequest imageRequest) {
+        Long id = envService.createImage(BaseImage.builder()
+                .name(imageRequest.getImageName())
+                .build());
+        return ResponseEntity.ok(Code.success.asResponse(idConvertor.convert(id)));
+    }
+
+    @Override
+    public ResponseEntity<ResponseMessage<String>> deleteImage(String imageId) {
+        Boolean res = envService.deleteImage(BaseImage.builder()
+            .id(idConvertor.revert(imageId))
+            .build());
+        if(!res) {
+            throw new StarWhaleApiException(new SWProcessException(ErrorType.DB).tip("Delete baseImage failed."),
+                HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+        return ResponseEntity.ok(Code.success.asResponse("success"));
+    }
+
+
 }

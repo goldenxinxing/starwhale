@@ -1,10 +1,7 @@
 import { IResourceSchema } from '@/domain/base/schemas/resource'
 import { IUserSchema } from '@user/schemas/user'
-import { IModelSchema } from '@model/schemas/model'
 import { IDatasetSchema } from '@dataset/schemas/dataset'
-import { IModelVersionSchema } from '@/domain/model/schemas/modelVersion'
 import { IBaseImageSchema, IDeviceSchema } from '../../runtime/schemas/runtime'
-import { IIndicator } from '@/components/Indicator/types'
 
 export enum JobActionType {
     CANCEL = 'cancel',
@@ -36,14 +33,12 @@ export interface IJobSchema extends IResourceSchema {
     device?: IDeviceSchema
     deviceCount: number
     duration: number
-    createTime: number
+    createdTime: number
     stopTime: number
     jobStatus: JobStatusType
 }
 
-export interface IJobDetailSchema extends IJobSchema {}
-
-export interface IUpdateJobSchema {}
+export type IJobDetailSchema = IJobSchema
 
 export interface ICreateJobSchema {
     modelVersionId: string
@@ -51,7 +46,6 @@ export interface ICreateJobSchema {
     baseImageId?: string
     deviceId?: string
     deviceCount?: number
-    // resultOutputPath?: string
 }
 
 export interface IJobFormSchema extends IJobSchema {

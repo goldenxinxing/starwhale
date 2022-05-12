@@ -1,3 +1,19 @@
+/**
+ * Copyright 2022 Starwhale, Inc. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package ai.starwhale.mlops.agent.test;
 
 import ai.starwhale.mlops.agent.configuration.AgentProperties;
@@ -13,19 +29,23 @@ import ai.starwhale.mlops.agent.task.inferencetask.executor.TaskExecutor;
 import ai.starwhale.mlops.agent.task.inferencetask.persistence.FileSystemPath;
 import ai.starwhale.mlops.agent.task.inferencetask.persistence.TaskPersistence;
 import ai.starwhale.mlops.api.protocol.report.resp.ResultPath;
+import ai.starwhale.mlops.api.protocol.report.resp.SWDSBlockVO;
 import ai.starwhale.mlops.domain.node.Device;
-import ai.starwhale.mlops.domain.swds.index.SWDSBlock;
 import ai.starwhale.mlops.domain.swds.index.SWDSDataLocation;
 import ai.starwhale.mlops.domain.swmp.SWModelPackage;
 import ai.starwhale.mlops.domain.task.TaskType;
 import cn.hutool.core.collection.CollectionUtil;
 import org.apache.commons.io.FileUtils;
-import org.junit.jupiter.api.Test;
+import org.junit.Ignore;
+import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.junit4.SpringRunner;
 
 import java.io.File;
 import java.io.IOException;
@@ -37,6 +57,8 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 
+@Ignore
+@RunWith(SpringRunner.class)
 @SpringBootTest(
         classes = StarWhaleAgentTestApplication.class)
 @TestPropertySource(
@@ -45,11 +67,12 @@ import static org.mockito.ArgumentMatchers.any;
                 "sw.agent.task.scheduler.enabled=false",
                 "sw.agent.node.sourcePool.init.enabled=false",
                 // when test,please set these properties with debug configuration
-                /*"sw.storage.s3-config.endpoint=http://10.131.0.1:9000",
-                "sw.agent.basePath=C:/\\Users/\\gaoxinxing/\\swtest" //*/
+                //"sw.storage.s3-config.endpoint=http://${ip}:9000",
+                "sw.agent.basePath=/var/starwhale"
         },
         locations = "classpath:application-integrationtest.yaml"
 )
+@DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_EACH_TEST_METHOD)
 public class TaskActionTest {
     @MockBean
     private GPUDetect nvidiaDetect;
@@ -80,10 +103,19 @@ public class TaskActionTest {
     @Autowired
     private FileSystemPath fileSystemPath;
 
+    private void pre() throws IOException {
+        if(Files.exists(Path.of(agentProperties.getBasePath()))) {
+            // clear local dir
+            FileUtils.cleanDirectory(new File(agentProperties.getBasePath()));
+        } else {
+            Files.createDirectory(Path.of(agentProperties.getBasePath()));
+        }
+
+    }
+
     @Test
     public void testPreparing2Running() throws IOException {
-        // clear local dir
-        FileUtils.cleanDirectory(new File(agentProperties.getBasePath()));
+        pre();
 
         Mockito.when(containerClient.createAndStartContainer(any()))
                 .thenReturn(Optional.of("0dbb121b-1c5a-3a75-8063-0e1620edefe5"));
@@ -120,12 +152,12 @@ public class TaskActionTest {
                                 .path("StarWhale/controller/swmp/mnist/meytmy3dge4gcnrtmftdgyjzoazxg3y")
                                 .build())
                         .swdsBlocks(List.of(
-                                SWDSBlock.builder().id(123456L).locationInput(
+                                SWDSBlockVO.builder().id(123456L).locationInput(
                                         SWDSDataLocation.builder().file("test-data").offset(0).size(100).build()
                                 ).locationLabel(
                                         SWDSDataLocation.builder().file("test-label").offset(100).size(100).build()
                                 ).build(),
-                                SWDSBlock.builder().id(123466L).locationInput(
+                            SWDSBlockVO.builder().id(123466L).locationInput(
                                         SWDSDataLocation.builder().file("test-data2").offset(0).size(100).build()
                                 ).locationLabel(
                                         SWDSDataLocation.builder().file("test-label2").offset(100).size(100).build()
@@ -149,9 +181,7 @@ public class TaskActionTest {
 
     @Test
     public void testMonitorTask() throws Exception {
-        // clear local dir
-        FileUtils.cleanDirectory(new File(agentProperties.getBasePath()));
-
+        pre();
         List<InferenceTask> tasks = List.of(
                 InferenceTask.builder()
                         .id(1234567890L)
@@ -168,12 +198,12 @@ public class TaskActionTest {
                                 .path("StarWhale/controller/swmp/mnist/meytmy3dge4gcnrtmftdgyjzoazxg3y")
                                 .build())
                         .swdsBlocks(List.of(
-                                SWDSBlock.builder().id(123456L).locationInput(
+                            SWDSBlockVO.builder().id(123456L).locationInput(
                                         SWDSDataLocation.builder().file("test-data").offset(0).size(100).build()
                                 ).locationLabel(
                                         SWDSDataLocation.builder().file("test-label").offset(100).size(100).build()
                                 ).build(),
-                                SWDSBlock.builder().id(123466L).locationInput(
+                            SWDSBlockVO.builder().id(123466L).locationInput(
                                         SWDSDataLocation.builder().file("test-data2").offset(0).size(100).build()
                                 ).locationLabel(
                                         SWDSDataLocation.builder().file("test-label2").offset(100).size(100).build()
@@ -196,12 +226,12 @@ public class TaskActionTest {
                                 .path("StarWhale/controller/swmp/mnist/meytmy3dge4gcnrtmftdgyjzoazxg3y")
                                 .build())
                         .swdsBlocks(List.of(
-                                SWDSBlock.builder().id(123456L).locationInput(
+                            SWDSBlockVO.builder().id(123456L).locationInput(
                                         SWDSDataLocation.builder().file("test-data").offset(0).size(100).build()
                                 ).locationLabel(
                                         SWDSDataLocation.builder().file("test-label").offset(100).size(100).build()
                                 ).build(),
-                                SWDSBlock.builder().id(123466L).locationInput(
+                            SWDSBlockVO.builder().id(123466L).locationInput(
                                         SWDSDataLocation.builder().file("test-data2").offset(0).size(100).build()
                                 ).locationLabel(
                                         SWDSDataLocation.builder().file("test-label2").offset(100).size(100).build()
@@ -231,8 +261,7 @@ public class TaskActionTest {
 
     @Test
     public void testUpload() throws IOException {
-        // clear local dir
-        FileUtils.cleanDirectory(new File(agentProperties.getBasePath()));
+        pre();
 
         List<InferenceTask> tasks = List.of(
                 InferenceTask.builder()
@@ -250,12 +279,12 @@ public class TaskActionTest {
                                 .path("StarWhale/controller/swmp/mnist/meytmy3dge4gcnrtmftdgyjzoazxg3y")
                                 .build())
                         .swdsBlocks(List.of(
-                                SWDSBlock.builder().id(123456L).locationInput(
+                            SWDSBlockVO.builder().id(123456L).locationInput(
                                         SWDSDataLocation.builder().file("test-data").offset(0).size(100).build()
                                 ).locationLabel(
                                         SWDSDataLocation.builder().file("test-label").offset(100).size(100).build()
                                 ).build(),
-                                SWDSBlock.builder().id(123466L).locationInput(
+                            SWDSBlockVO.builder().id(123466L).locationInput(
                                         SWDSDataLocation.builder().file("test-data2").offset(0).size(100).build()
                                 ).locationLabel(
                                         SWDSDataLocation.builder().file("test-label2").offset(100).size(100).build()
@@ -278,12 +307,12 @@ public class TaskActionTest {
                                 .path("StarWhale/controller/swmp/mnist/meytmy3dge4gcnrtmftdgyjzoazxg3y")
                                 .build())
                         .swdsBlocks(List.of(
-                                SWDSBlock.builder().id(123456L).locationInput(
+                            SWDSBlockVO.builder().id(123456L).locationInput(
                                         SWDSDataLocation.builder().file("test-data").offset(0).size(100).build()
                                 ).locationLabel(
                                         SWDSDataLocation.builder().file("test-label").offset(100).size(100).build()
                                 ).build(),
-                                SWDSBlock.builder().id(123466L).locationInput(
+                            SWDSBlockVO.builder().id(123466L).locationInput(
                                         SWDSDataLocation.builder().file("test-data2").offset(0).size(100).build()
                                 ).locationLabel(
                                         SWDSDataLocation.builder().file("test-label2").offset(100).size(100).build()
@@ -305,10 +334,14 @@ public class TaskActionTest {
 
 
     @Test
-    public void testArchived() {
+    public void testArchived() throws IOException {
+        pre();
         InferenceTask task = InferenceTask.builder()
                 .id(1234567890L)
+                .containerId("container-1")
+                .resultPath(new ResultPath("todo"))
                 .build();
+        Mockito.when(containerClient.containerInfo(any())).thenReturn(ContainerClient.ContainerInfo.builder().logPath("log-path").build());
         assertFalse(Files.exists(Path.of(fileSystemPath.oneArchivedTaskDir(task.getId()))));
         archivedAction.apply(task, null);
         assertTrue(Files.exists(Path.of(fileSystemPath.oneArchivedTaskDir(task.getId()))));

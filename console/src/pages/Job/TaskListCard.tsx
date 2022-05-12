@@ -1,13 +1,13 @@
-import React, { useCallback, useState } from 'react'
+import React from 'react'
 import Card from '@/components/Card'
 import { usePage } from '@/hooks/usePage'
 import { formatTimestampDateTime } from '@/utils/datetime'
 import useTranslation from '@/hooks/useTranslation'
 import Table from '@/components/Table/index'
-import { Link, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { useFetchTasks } from '@job/hooks/useFetchTasks'
-import { JobStatusType } from '@/domain/job/schemas/job'
 import { StyledLink } from 'baseui/link'
+
 export interface ITaskListCardProps {
     header: React.ReactNode
     onAction?: (type: string, value: any) => void
@@ -31,13 +31,13 @@ export default function TaskListCard({ header, onAction }: ITaskListCardProps) {
                             task.uuid,
                             task.agent?.ip,
                             task.agent?.version,
-                            task.startTime && formatTimestampDateTime(task.startTime),
+                            task.createdTime && formatTimestampDateTime(task.createdTime),
                             task.taskStatus,
-                            // && JobStatusType[task.status],
                             <StyledLink
+                                key={task.uuid}
                                 onClick={() => {
                                     onAction?.('viewlog', {
-                                        uuid: task.uuid,
+                                        ...task,
                                     })
                                 }}
                             >

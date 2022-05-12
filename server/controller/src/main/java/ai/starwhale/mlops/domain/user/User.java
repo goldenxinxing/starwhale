@@ -1,13 +1,21 @@
-/*
- * Copyright 2022.1-2022
- *  starwhale.ai All right reserved. This software is the confidential and proprietary information of
- *  starwhale.ai ("Confidential Information"). You shall not disclose such Confidential Information and shall use it only
- * in accordance with the terms of the license agreement you entered into with  starwhale.ai.
+/**
+ * Copyright 2022 Starwhale, Inc. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package ai.starwhale.mlops.domain.user;
 
-import ai.starwhale.mlops.common.IDConvertor;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Set;
@@ -24,7 +32,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 @NoArgsConstructor
 public class User implements UserDetails, Serializable {
 
-    private String id;
+    private Long id;
     private Long idTableKey;
     private String name;
     private String password;
@@ -63,20 +71,15 @@ public class User implements UserDetails, Serializable {
     }
 
     public User fromEntity(UserEntity entity) {
-        return fromEntity(entity, null);
-    }
-    public User fromEntity(UserEntity entity, IDConvertor idConvertor) {
         if(entity == null) {
             return this;
         }
-        if (idConvertor != null) {
-          setId(idConvertor.convert(entity.getId()));
-        }
+        setId(entity.getId());
         setName(entity.getUserName());
         setPassword(entity.getUserPwd());
         setSalt(entity.getUserPwdSalt());
         setActive(entity.getUserEnabled() == 1);
-        setRoles(Set.of(new Role().fromEntity(entity.getRole(), idConvertor)));
+        setRoles(Set.of(new Role().fromEntity(entity.getRole())));
         setIdTableKey(entity.getId());
         return this;
     }

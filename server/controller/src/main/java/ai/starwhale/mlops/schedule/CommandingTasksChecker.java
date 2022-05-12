@@ -1,14 +1,29 @@
-/*
- * Copyright 2022.1-2022
- * StarWhale.ai All right reserved. This software is the confidential and proprietary information of
- * StarWhale.ai ("Confidential Information"). You shall not disclose such Confidential Information and shall use it only
- * in accordance with the terms of the license agreement you entered into with StarWhale.ai.
+/**
+ * Copyright 2022 Starwhale, Inc. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package ai.starwhale.mlops.schedule;
 
+import ai.starwhale.mlops.domain.node.Device.Clazz;
 import ai.starwhale.mlops.domain.system.agent.Agent;
+import ai.starwhale.mlops.domain.system.agent.AgentStatus;
+import ai.starwhale.mlops.domain.system.agent.AgentStatusWatcher;
+import ai.starwhale.mlops.domain.task.LivingTaskCache;
+import ai.starwhale.mlops.domain.task.bo.Task;
 import ai.starwhale.mlops.domain.task.bo.TaskCommand;
+import ai.starwhale.mlops.domain.task.status.TaskStatus;
 import ai.starwhale.mlops.domain.task.status.TaskStatusMachine;
 import ai.starwhale.mlops.reporting.ReportedTask;
 import java.util.Collections;
@@ -33,14 +48,20 @@ import org.springframework.util.CollectionUtils;
  */
 @Slf4j
 @Service
-public class CommandingTasksChecker {
+public class CommandingTasksChecker implements AgentStatusWatcher {
 
     final TaskStatusMachine taskStatusMachine;
     final Map<Agent, Set<TaskCommand>> commandingTaskAgentMap;
+    final LivingTaskCache livingTaskCache;
+    final SWTaskScheduler swTaskScheduler;
 
     public CommandingTasksChecker(
-        TaskStatusMachine taskStatusMachine){
+        TaskStatusMachine taskStatusMachine,
+        LivingTaskCache livingTaskCache,
+        SWTaskScheduler swTaskScheduler){
         this.taskStatusMachine = taskStatusMachine;
+        this.livingTaskCache = livingTaskCache;
+        this.swTaskScheduler = swTaskScheduler;
         commandingTaskAgentMap = new ConcurrentHashMap<>();
     }
 
@@ -86,4 +107,29 @@ public class CommandingTasksChecker {
         return unProperTasks;
     }
 
+    @Override
+    public void agentStatusChange(Agent agent, AgentStatus newStatus) {
+        log.debug("agent status change to {} watched by {}",newStatus,this.getClass().getName());
+        if(AgentStatus.OFFLINE != newStatus){
+            return;
+        }
+        Set<TaskCommand> taskCommands = commandingTaskAgentMap.get(agent);
+        commandingTaskAgentMap.remove(agent);
+        if(null == taskCommands || taskCommands.isEmpty()){
+            return;
+        }
+        reScheduleTasks(taskCommands);
+
+    }
+
+    private void reScheduleTasks(Set<TaskCommand> taskCommands) {
+        List<Long> taskIds = taskCommands.parallelStream().map(tc -> tc.getTask().getId())
+            .collect(Collectors.toList());
+        livingTaskCache.update(taskIds, TaskStatus.CREATED);
+        Map<Clazz, List<Task>> deviceGroup = taskCommands.parallelStream().map(TaskCommand::getTask)
+            .collect(Collectors.groupingBy(task -> task.getJob().getJobRuntime().getDeviceClass()));
+        deviceGroup.forEach((deviceClass,tasks)->{
+            swTaskScheduler.adoptTasks(tasks,deviceClass);
+        });
+    }
 }

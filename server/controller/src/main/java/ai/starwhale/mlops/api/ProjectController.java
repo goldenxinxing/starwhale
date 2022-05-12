@@ -1,8 +1,17 @@
-/*
- * Copyright 2022.1-2022
- * StarWhale.ai All right reserved. This software is the confidential and proprietary information of
- * StarWhale.ai ("Confidential Information"). You shall not disclose such Confidential Information and shall use it only
- * in accordance with the terms of the license agreement you entered into with StarWhale.ai.
+/**
+ * Copyright 2022 Starwhale, Inc. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package ai.starwhale.mlops.api;
@@ -11,6 +20,8 @@ import ai.starwhale.mlops.api.protocol.Code;
 import ai.starwhale.mlops.api.protocol.ResponseMessage;
 import ai.starwhale.mlops.api.protocol.project.ProjectRequest;
 import ai.starwhale.mlops.api.protocol.project.ProjectVO;
+import ai.starwhale.mlops.common.IDConvertor;
+import ai.starwhale.mlops.common.OrderParams;
 import ai.starwhale.mlops.common.PageParams;
 import ai.starwhale.mlops.domain.project.Project;
 import ai.starwhale.mlops.domain.project.ProjectService;
@@ -36,14 +47,26 @@ public class ProjectController implements ProjectApi{
     @Resource
     private UserService userService;
 
+    @Resource
+    private IDConvertor idConvertor;
+
     @Override
     public ResponseEntity<ResponseMessage<PageInfo<ProjectVO>>> listProject(String projectName,
-        Integer pageNum, Integer pageSize) {
+        String ownerId, String ownerName, Integer pageNum, Integer pageSize, String sort, Integer order) {
 
         PageInfo<ProjectVO> projects = projectService.listProject(
-            Project.builder().name(projectName).build(),
-            PageParams.builder().pageNum(pageNum).pageSize(pageSize).build());
-
+            Project.builder()
+                .name(projectName)
+                .owner(User.builder().id(idConvertor.revert(ownerId)).name(ownerName).build())
+                .build(),
+            PageParams.builder()
+                .pageNum(pageNum)
+                .pageSize(pageSize)
+                .build(),
+            OrderParams.builder()
+                .sort(sort)
+                .order(order)
+                .build());
 
         return ResponseEntity.ok(Code.success.asResponse(projects));
     }
@@ -52,20 +75,20 @@ public class ProjectController implements ProjectApi{
     public ResponseEntity<ResponseMessage<String>> createProject(ProjectRequest projectRequest) {
         User user = userService.currentUserDetail();
 
-        String projectId = projectService
+        Long projectId = projectService
             .createProject(Project.builder()
                 .name(projectRequest.getProjectName())
-                .ownerId(user.getId())
+                .owner(User.builder().id(user.getId()).build())
                 .isDefault(false)
                 .build());
 
-        return ResponseEntity.ok(Code.success.asResponse(projectId));
+        return ResponseEntity.ok(Code.success.asResponse(idConvertor.convert(projectId)));
 
     }
 
     @Override
     public ResponseEntity<ResponseMessage<String>> deleteProjectById(String projectId) {
-        Boolean res = projectService.deleteProject(Project.builder().id(projectId).build());
+        Boolean res = projectService.deleteProject(Project.builder().id(idConvertor.revert(projectId)).build());
         if(!res) {
             throw new StarWhaleApiException(new SWProcessException(ErrorType.DB).tip("Delete project failed."),
                 HttpStatus.INTERNAL_SERVER_ERROR);
@@ -75,7 +98,7 @@ public class ProjectController implements ProjectApi{
 
     @Override
     public ResponseEntity<ResponseMessage<ProjectVO>> getProjectById(String projectId) {
-        ProjectVO project = projectService.findProject(Project.builder().id(projectId).build());
+        ProjectVO project = projectService.findProject(Project.builder().id(idConvertor.revert(projectId)).build());
         return ResponseEntity.ok(Code.success.asResponse(project));
     }
 
@@ -84,7 +107,7 @@ public class ProjectController implements ProjectApi{
         String projectName) {
         Boolean res = projectService
             .modifyProject(Project.builder()
-                .id(projectId)
+                .id(idConvertor.revert(projectId))
                 .name(projectName)
                 .build());
         if(!res) {

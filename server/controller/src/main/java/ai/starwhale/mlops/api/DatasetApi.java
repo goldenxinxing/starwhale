@@ -1,8 +1,17 @@
-/*
- * Copyright 2022.1-2022
- * StarWhale.ai All right reserved. This software is the confidential and proprietary information of
- * StarWhale.ai ("Confidential Information"). You shall not disclose such Confidential Information and shall use it only
- * in accordance with the terms of the license agreement you entered into with StarWhale.com.
+/**
+ * Copyright 2022 Starwhale, Inc. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package ai.starwhale.mlops.api;
@@ -13,14 +22,13 @@ import ai.starwhale.mlops.api.protocol.swds.DatasetVersionVO;
 import ai.starwhale.mlops.api.protocol.swds.RevertSWDSRequest;
 import ai.starwhale.mlops.api.protocol.swds.SWDSRequest;
 import ai.starwhale.mlops.api.protocol.swds.SWDSVersionRequest;
-import ai.starwhale.mlops.api.protocol.swds.upload.UploadHeader;
+import ai.starwhale.mlops.api.protocol.swds.SWDatasetInfoVO;
 import ai.starwhale.mlops.api.protocol.swds.upload.UploadRequest;
 import ai.starwhale.mlops.api.protocol.swds.upload.UploadResult;
 import com.github.pagehelper.PageInfo;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
-import io.swagger.v3.oas.annotations.headers.Header;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -91,10 +99,10 @@ public interface DatasetApi {
                 content =
                 @Content(
                     mediaType = "application/json",
-                    schema = @Schema(implementation = DatasetVersionVO.class)))
+                    schema = @Schema(implementation = SWDatasetInfoVO.class)))
         })
     @GetMapping(value = "/project/{projectId}/dataset/{datasetId}")
-    ResponseEntity<ResponseMessage<DatasetVersionVO>> getDatasetInfo(
+    ResponseEntity<ResponseMessage<SWDatasetInfoVO>> getDatasetInfo(
         @Parameter(
             in = ParameterIn.PATH,
             description = "Project id",
@@ -135,8 +143,14 @@ public interface DatasetApi {
             in = ParameterIn.QUERY,
             description = "Dataset version name prefix",
             schema = @Schema())
-        @RequestParam(value = "dsVersionName", required = false)
-            String dsVersionName,
+        @RequestParam(value = "vName", required = false)
+            String vName,
+        @Parameter(
+            in = ParameterIn.QUERY,
+            description = "Dataset version tag",
+            schema = @Schema())
+        @RequestParam(value = "vTag", required = false)
+        String vTag,
         @Parameter(in = ParameterIn.QUERY, description = "The page number", schema = @Schema())
         @Valid
         @RequestParam(value = "pageNum", required = false, defaultValue = "1")

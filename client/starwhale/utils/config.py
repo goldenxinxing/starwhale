@@ -4,22 +4,24 @@ import typing as t
 from pathlib import Path
 
 from starwhale.consts import (
-    SW_CLI_CONFIG, DEFAULT_LOCAL_SW_CONTROLLER_ADDR,
-    SW_LOCAL_STORAGE, ENV_SW_CLI_CONFIG,
+    SW_CLI_CONFIG,
+    DEFAULT_LOCAL_SW_CONTROLLER_ADDR,
+    SW_LOCAL_STORAGE,
+    ENV_SW_CLI_CONFIG,
 )
 from starwhale.utils.fs import ensure_dir
 from starwhale.utils import fmt_http_server
 
-_config = {}
+_config: t.Dict[str, t.Any] = {}
 
 
-def load_swcli_config() -> dict:
+def load_swcli_config() -> t.Dict[str, t.Any]:
     global _config
 
     if _config:
         return _config
 
-    #TODO: add set_global_env func in cli startup
+    # TODO: add set_global_env func in cli startup
     fpath = get_swcli_config_path()
 
     if not os.path.exists(fpath):
@@ -31,7 +33,7 @@ def load_swcli_config() -> dict:
     return _config
 
 
-def render_default_swcli_config(fpath: str) -> dict:
+def render_default_swcli_config(fpath: str) -> t.Dict[str, t.Any]:
     c = dict(
         controller=dict(
             remote_addr=DEFAULT_LOCAL_SW_CONTROLLER_ADDR,
@@ -39,17 +41,15 @@ def render_default_swcli_config(fpath: str) -> dict:
             username="",
             user_role="",
         ),
-        storage=dict(
-            root=str(SW_LOCAL_STORAGE.resolve())
-        )
+        storage=dict(root=str(SW_LOCAL_STORAGE.resolve())),
     )
     render_swcli_config(c, fpath)
     return c
 
 
-def update_swcli_config(**kw) -> None:
+def update_swcli_config(**kw: t.Any) -> None:
     c = load_swcli_config()
-    #TODO: tune update config
+    # TODO: tune update config
     c.update(kw)
     render_swcli_config(c)
 
@@ -61,17 +61,17 @@ def get_swcli_config_path() -> str:
     return fpath
 
 
-def render_swcli_config(c: dict, path: str="") -> None:
+def render_swcli_config(c: t.Dict[str, t.Any], path: str = "") -> None:
     fpath = path or get_swcli_config_path()
     ensure_dir(os.path.dirname(fpath), recursion=True)
     with open(fpath, "w") as f:
-        #TODO: use sw_cli_config class
+        # TODO: use sw_cli_config class
         yaml.dump(c, f, default_flow_style=False)
 
 
-#TODO: abstract better common base or mixed class
+# TODO: abstract better common base or mixed class
 class SWCliConfigMixed(object):
-    def __init__(self, swcli_config: t.Union[dict, None]=None) -> None:
+    def __init__(self, swcli_config: t.Union[t.Dict[str, t.Any], None] = None) -> None:
         self._config = swcli_config or load_swcli_config()
 
     @property
@@ -91,6 +91,10 @@ class SWCliConfigMixed(object):
         return self.rootdir / "dataset"
 
     @property
+    def eval_run_dir(self) -> Path:
+        return self.rootdir / "run" / "eval"
+
+    @property
     def sw_remote_addr(self) -> str:
         addr = self._controller.get("remote_addr", "")
         return fmt_http_server(addr)
@@ -104,7 +108,7 @@ class SWCliConfigMixed(object):
         return self._controller.get("sw_token", "")
 
     @property
-    def _controller(self) -> dict:
+    def _controller(self) -> t.Dict[str, t.Any]:
         return self._config.get("controller", {})
 
     @property
