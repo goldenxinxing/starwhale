@@ -2,7 +2,7 @@ name: Release Docker Image and Pypi Package
 
 on:
   pull_request:
-    types: [opened]
+    types: [opened, reopened]
 
 jobs:
   pypi-release:
@@ -40,5 +40,5 @@ jobs:
       - name: Build Python Package
         working-directory: ./client
         env:
-          PYPI_RELEASE_VERSION: test.gxx
+          PYPI_RELEASE_VERSION: v0.0.1
         run: make build-wheel
