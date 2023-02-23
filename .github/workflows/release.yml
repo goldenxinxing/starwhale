@@ -1,8 +1,8 @@
 name: Release Docker Image and Pypi Package
 
 on:
-  release:
-    types: [published]
+  pull_request:
+    types: [opened]
 
 jobs:
   pypi-release:
