@@ -17,32 +17,26 @@
 package ai.starwhale.mlops.configuration;
 
 import ai.starwhale.mlops.datastore.DataStore;
-import javax.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.stereotype.Component;
 
-@Configuration
-public class ShutdownConfiguration {
+@Slf4j
+@Component
+public class GracefulShutdown implements CommandLineRunner {
 
-    @Slf4j
-    static class TerminateBean {
-        private final DataStore dataStore;
+    private final DataStore dataStore;
 
-        TerminateBean(DataStore dataStore) {
-            this.dataStore = dataStore;
-        }
-
-        @PreDestroy
-        public void onDestroy() throws Exception {
-            log.info("Start to execute preDestroy logic.");
-            dataStore.terminate();
-            log.info("Spring Container is destroyed!");
-        }
+    public GracefulShutdown(DataStore dataStore) {
+        this.dataStore = dataStore;
     }
 
-    @Bean
-    public TerminateBean terminateBean(DataStore dataStore) {
-        return new TerminateBean(dataStore);
+    @Override
+    public void run(String... args) {
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            log.info("Start to execute destroy logic.");
+            dataStore.terminate();
+            log.info("Finished destroy!");
+        }));
     }
 }
