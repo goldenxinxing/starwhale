@@ -10,6 +10,8 @@ spring:
   web:
     resources:
       static-locations: file:/opt/starwhale.java/static/, classpath:/static/
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
 sw:
   version: ${SW_VERSION_CONTROLLER:0.1.0:8c82767b60686f3e2bfea9dafe8c8cce5dd34f52}
   features:
