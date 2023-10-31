@@ -9,6 +9,6 @@ ENV TZ=Etc/UTC
 
 # Install os dependence\OpenJDK-11
 RUN apt-get update \
-    && apt-get install -y openjdk-11-jre \
+    && apt-get install -y openjdk-11-jre curl net-tools ethtool \
     && apt-get clean all \
     && rm -rf /var/lib/apt/lists/* /tmp/*
